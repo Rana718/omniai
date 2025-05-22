@@ -5,6 +5,10 @@ import uvicorn
 app = FastAPI()
 
 
+@app.get("/")
+async def root():
+    return {"message": "Welcome to the PDF processing API!"}
+
 @app.post("/upload/")
 async def upload_pdf(userid: str = Form(...), doc_id: str = Form(...), files: list[UploadFile] = File(...)):
     await process_pdf_files(userid, doc_id, files)

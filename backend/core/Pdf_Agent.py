@@ -1,5 +1,4 @@
 import os
-import tempfile
 import pytesseract
 from pdf2image import convert_from_path
 from PyPDF2 import PdfReader
@@ -10,6 +9,7 @@ from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 from utils.file_utils import save_files, append_history, load_history
 import google.generativeai as genai
+from PIL import ImageFilter, ImageOps
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,8 +18,15 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 DATA_DIR = "storage/faiss_index"
 
 
+def preprocess_image(img):
+    """Convert to grayscale, sharpen, and enhance contrast."""
+    gray = ImageOps.grayscale(img)
+    sharpened = gray.filter(ImageFilter.SHARPEN)
+    enhanced = ImageOps.autocontrast(sharpened)
+    return enhanced
+
 def extract_text_from_pdf(file_path: str) -> str:
-    """Extract text from PDF using both PyPDF2 and OCR with pytesseract."""
+    """Extract text from PDF using both PyPDF2 and OCR with pytesseract, with image preprocessing."""
     full_text = ""
 
     print(f"\n🔍 Extracting from {file_path} using PyPDF2...")
@@ -33,18 +40,18 @@ def extract_text_from_pdf(file_path: str) -> str:
     except Exception as e:
         print(f"❌ PyPDF2 read error: {e}")
 
-    print(f"🧠 Now performing OCR on images from {file_path}...")
+    print(f"🧠 Now performing OCR on images from {file_path} with preprocessing...")
     try:
         images = convert_from_path(file_path)
         for i, img in enumerate(images):
-            ocr_text = pytesseract.image_to_string(img)
-            print(f"[OCR] Page {i+1}: {repr(ocr_text[:200])}...")  # print first 200 chars
+            processed_img = preprocess_image(img)
+            ocr_text = pytesseract.image_to_string(processed_img)
+            print(f"[OCR] Page {i+1}: {repr(ocr_text[:200])}...")
             full_text += ocr_text + "\n"
     except Exception as e:
         print(f"❌ OCR failed: {e}")
 
     return full_text
-
 
 def get_text_chunks(text):
     splitter = RecursiveCharacterTextSplitter(chunk_size=10000, chunk_overlap=1000)
