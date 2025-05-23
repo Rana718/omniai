@@ -1,25 +1,30 @@
-from fastapi import FastAPI, UploadFile, File, Form
-from core.Pdf_Agent import process_pdf_files, answer_question
+from fastapi import FastAPI, Request
+from middleware.auth_middleware import JWTAuthMiddleware
+from dotenv import load_dotenv
+from routes import auth, pdfchat
 import uvicorn
+from db.db import init_db
+
+load_dotenv()
 
 app = FastAPI()
 
+@app.on_event("startup")
+async def startup_event():
+    await init_db()
+
+app.add_middleware(JWTAuthMiddleware)
+app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(pdfchat.app, prefix="/pdfchat", tags=["pdfchat"])
+
+@app.get("/protected")
+async def protected_route(request: Request):
+    user = request.state.user 
+    return {"message": f"Welcome {user['email']}"}
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to the PDF processing API!"}
-
-@app.post("/upload/")
-async def upload_pdf(userid: str = Form(...), doc_id: str = Form(...), files: list[UploadFile] = File(...)):
-    await process_pdf_files(userid, doc_id, files)
-    return {"message": "PDFs processed and embeddings stored."}
-
-
-@app.post("/ask/")
-async def ask_question(userid: str = Form(...), doc_id: str = Form(...), question: str = Form(...)):
-    answer = await answer_question(userid, doc_id, question)
-    return {"answer": answer}
-
+    return {"message": "Welcome to the FastAPI application!"}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
