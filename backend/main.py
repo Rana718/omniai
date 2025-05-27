@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from middleware.auth_middleware import JWTAuthMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from routes import auth, pdfchat
 import uvicorn
@@ -8,6 +9,13 @@ from db.db import init_db
 load_dotenv()
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("startup")
 async def startup_event():
