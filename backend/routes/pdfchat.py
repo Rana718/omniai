@@ -16,6 +16,7 @@ async def get_all_docs(request:Request):
 async def upload_pdf(request:Request, doc_id: str = Form(...), files: list[UploadFile] = File(...)):
     user = request.state.user
     userid = user.email
+    print(f"user: {userid}")
     await process_pdf_files(userid, doc_id, files)
     return {"message": "PDFs processed and embeddings stored.", "doc_id": doc_id}
 
