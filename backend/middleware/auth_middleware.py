@@ -24,6 +24,9 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         if is_public_path(path):
             return await call_next(request)
 
