@@ -16,7 +16,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
     title: "PDF Chatter - Chat with Your PDFs",
-    description: "Transform your PDF documents into interactive conversations. Upload, ask questions, and get instant answers powered by advanced AI technology.",
+    description:
+        "Transform your PDF documents into interactive conversations. Upload, ask questions, and get instant answers powered by advanced AI technology.",
 };
 
 export default function RootLayout({
@@ -25,14 +26,12 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en">
+        <html lang="en" suppressHydrationWarning={true}>
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased transition-colors duration-300`}
             >
                 <ThemeProvider>
-                    <AuthProvider>
-                        {children}
-                    </AuthProvider>
+                    <AuthProvider>{children}</AuthProvider>
                 </ThemeProvider>
             </body>
         </html>

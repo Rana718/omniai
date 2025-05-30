@@ -2,7 +2,12 @@
 
 :root {
     --background: #ffffff;
-    --background-gradient: linear-gradient(135deg, #f8fafc 0%, #ffffff 50%, #f1f5f9 100%);
+    --background-gradient: linear-gradient(
+        135deg,
+        #f8fafc 0%,
+        #ffffff 50%,
+        #f1f5f9 100%
+    );
     --foreground: #171717;
     --card: #ffffff;
     --card-foreground: #171717;
@@ -26,7 +31,12 @@
 
 .dark {
     --background: #0a0a0a;
-    --background-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+    --background-gradient: linear-gradient(
+        135deg,
+        #0f172a 0%,
+        #1e293b 50%,
+        #334155 100%
+    );
     --foreground: #ededed;
     --card: #1a1a1a;
     --card-foreground: #ededed;
@@ -55,7 +65,9 @@ body {
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition:
+        background-color 0.3s ease,
+        color 0.3s ease;
 }
 
 /* Custom scrollbar */
@@ -92,8 +104,13 @@ html {
 
 /* Custom animations */
 @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+    0%,
+    100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
 }
 
 .animate-float {
@@ -102,9 +119,15 @@ html {
 
 /* Gradient text animation */
 @keyframes gradient {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
 .animate-gradient {
@@ -166,7 +189,12 @@ html {
 
 /* Theme-aware text gradients */
 .text-gradient {
-    background: linear-gradient(135deg, var(--primary) 0%, #8b5cf6 50%, #ec4899 100%);
+    background: linear-gradient(
+        135deg,
+        var(--primary) 0%,
+        #8b5cf6 50%,
+        #ec4899 100%
+    );
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -174,9 +202,31 @@ html {
 }
 
 .dark .text-gradient {
-    background: linear-gradient(135deg, var(--primary) 0%, #a855f7 50%, #f472b6 100%);
+    background: linear-gradient(
+        135deg,
+        var(--primary) 0%,
+        #a855f7 50%,
+        #f472b6 100%
+    );
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-size: 200% 200%;
+}
+
+/* Line clamp utilities */
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
