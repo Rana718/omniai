@@ -9,7 +9,7 @@ router = APIRouter()
 
 SECRET_KEY = os.getenv("JWT_SECRET", "supersecret")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 600
+ACCESS_TOKEN_EXPIRE_MINUTES = 43200
 
 def create_token(data: dict):
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)

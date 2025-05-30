@@ -7,18 +7,22 @@ app = APIRouter()
 
 
 @app.get("/")
-async def get_all_docs(request:Request):
+async def get_all_docs(request: Request):
     user = request.state.user
     userid = user.email
     chats = await Chat.find(Chat.user_email == userid).to_list()
-    return [{"doc_id": chat.doc_id, "doc_text": chat.doc_text} for chat in chats]
+    return [chat.model_dump(include={"doc_id", "doc_text", "created_at"}) for chat in chats]
 
 @app.post("/upload")
-async def upload_pdf(request:Request, files: list[UploadFile] = File(...)):
+async def upload_pdf(request:Request, files: list[UploadFile] = File(...), doc_id: str = Form(None), doc_name: str = Form(None)):
     userid = request.state.user.email
-    doc_id = generate_doc_id(userid)
-    print(f"user: {userid}")
-    await process_pdf_files(userid, doc_id, files)
+
+    if not doc_id:
+        doc_id = generate_doc_id()
+        if doc_name is None:
+            doc_name = "NEW DOCUMENT"
+
+    await process_pdf_files(userid, doc_id, files, doc_name)
     return {"message": "PDFs processed and embeddings stored.", "doc_id": doc_id}
 
 
@@ -37,5 +41,13 @@ async def get_chat_history(chat_id: str):
         raise HTTPException(status_code=404, detail="Chat not found")
 
     history = await QAHistory.find(QAHistory.chat.id == chat.id).to_list()
-    return [{"question": h.question, "answer": h.answer, "timestamp": h.timestamp} for h in history]
-    
+
+    doc_text = chat.doc_text 
+
+    return {
+        "docsname": doc_text,
+        "history": [
+            h.model_dump(include={"question", "answer", "timestamp"})
+            for h in history
+        ]
+    }

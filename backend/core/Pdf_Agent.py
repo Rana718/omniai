@@ -67,14 +67,15 @@ def get_vector_store(doc_id, embeddings):
     return vector_cache[doc_id]
 
 
-async def process_pdf_files(userid, doc_id, files):
+async def process_pdf_files(userid, doc_id, files, doc_name):
+    
     user = await User.find_one(User.email == userid)
     if not user:
         raise Exception("User not found")
 
     chat = await Chat.find_one(Chat.doc_id == doc_id)
     if not chat:
-        chat = Chat(user=user, doc_id=doc_id, doc_text="This is a test")
+        chat = Chat(user=user, doc_id=doc_id, doc_text=doc_name)
         await chat.insert()
 
     folder = save_files(userid, doc_id, files)
@@ -84,6 +85,7 @@ async def process_pdf_files(userid, doc_id, files):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     vector_store = FAISS.from_texts(chunks, embedding=embeddings)
     vector_store.save_local(os.path.join(DATA_DIR, doc_id))
+
 
 
 async def answer_question(userid, doc_id, question):
