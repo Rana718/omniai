@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
 from core.Pdf_Agent import process_pdf_files, answer_question
 from models.models import Chat, QAHistory
+from utils.id_gen import generate_doc_id
 
 app = APIRouter()
 
@@ -13,9 +14,9 @@ async def get_all_docs(request:Request):
     return [{"doc_id": chat.doc_id, "doc_text": chat.doc_text} for chat in chats]
 
 @app.post("/upload")
-async def upload_pdf(request:Request, doc_id: str = Form(...), files: list[UploadFile] = File(...)):
-    user = request.state.user
-    userid = user.email
+async def upload_pdf(request:Request, files: list[UploadFile] = File(...)):
+    userid = request.state.user.email
+    doc_id = generate_doc_id(userid)
     print(f"user: {userid}")
     await process_pdf_files(userid, doc_id, files)
     return {"message": "PDFs processed and embeddings stored.", "doc_id": doc_id}
