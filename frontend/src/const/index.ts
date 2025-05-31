@@ -1,4 +1,4 @@
-import { Upload, MessageSquare, Zap, Shield, Clock, Users } from "lucide-react";
+import { Upload, MessageSquare, Zap, Shield, Clock, Users, FileCode, FileText, Globe } from "lucide-react";
 
 const Feature = [
     {
@@ -45,4 +45,43 @@ const Feature = [
     },
 ];
 
-export { Feature };
+const chatOptions = [
+    {
+        id: "pdf",
+        title: "PDF Chat",
+        description: "Chat with your PDF documents and get instant answers",
+        icon: FileText,
+        color: "from-red-500 to-pink-500",
+        bgColor: "bg-red-50 dark:bg-red-900/20",
+        route: "/chat/docs",
+    },
+    {
+        id: "text",
+        title: "Text Chat",
+        description: "Direct AI conversation for any topic or question",
+        icon: MessageSquare,
+        color: "from-purple-500 to-violet-500",
+        bgColor: "bg-purple-50 dark:bg-purple-900/20",
+        comingSoon: true,
+    },
+    {
+        id: "web",
+        title: "Web Chat",
+        description: "Chat with web pages and online content",
+        icon: Globe,
+        color: "from-orange-500 to-amber-500",
+        bgColor: "bg-orange-50 dark:bg-orange-900/20",
+        comingSoon: true,
+    },
+    {
+        id: "code",
+        title: "Code Chat",
+        description: "Get help with programming and code analysis",
+        icon: FileCode,
+        color: "from-indigo-500 to-blue-500",
+        bgColor: "bg-indigo-50 dark:bg-indigo-900/20",
+        comingSoon: true,
+    },
+];
+
+export { Feature, chatOptions };
