@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Home, Menu, AlertCircle } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -12,7 +12,7 @@ import { HistoryItem, Message, PreviousChat } from "@/types";
 import Link from "next/link";
 
 export default function DocsPage() {
-    const { data: session } = useSession();
+    const { data: session, status } = useSession();
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
@@ -28,44 +28,86 @@ export default function DocsPage() {
     const [isChatLoading, setIsChatLoading] = useState(false);
     const [documentNotFound, setDocumentNotFound] = useState(false);
     const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
+    const [isVisible, setIsVisible] = useState(true);
+    
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const fetchingRef = useRef(false);
+    const initializedRef = useRef(false);
 
-    // Helper function to update URL without page reload
-    const updateURL = (docId: string | null) => {
-        const url = docId ? `${pathname}?id=${docId}` : pathname;
-        router.replace(url, { scroll: false });
-    };
-
+    // Handle page visibility changes
     useEffect(() => {
-        const fetchPreviousChats = async () => {
-            if (!session?.user?.accessToken) return;
-
-            setIsLoadingChats(true);
-            try {
-                const response = await axiosInstance.get("/pdfchat");
-                const chats: PreviousChat[] = response.data;
-
-                const sortedChats = chats.sort((a, b) => {
-                    const timestampA = new Date(a.created_at).getTime();
-                    const timestampB = new Date(b.created_at).getTime();
-                    return timestampB - timestampA;
-                });
-
-                setPreviousChats(sortedChats);
-                setIsInitialLoadComplete(true);
-            } catch (error) {
-                console.error("Error fetching previous chats:", error);
-                setIsInitialLoadComplete(true);
-            } finally {
-                setIsLoadingChats(false);
-            }
+        const handleVisibilityChange = () => {
+            setIsVisible(!document.hidden);
         };
 
-        fetchPreviousChats();
-    }, [session]);
+        const handleFocus = () => {
+            setIsVisible(true);
+        };
 
+        const handleBlur = () => {
+            setIsVisible(false);
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', handleFocus);
+        window.addEventListener('blur', handleBlur);
+
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', handleFocus);
+            window.removeEventListener('blur', handleBlur);
+        };
+    }, []);
+
+    // Prevent multiple fetches
+    const fetchPreviousChats = useCallback(async () => {
+        if (fetchingRef.current || status !== "authenticated" || !session?.user?.accessToken) {
+            return;
+        }
+
+        fetchingRef.current = true;
+        setIsLoadingChats(true);
+        
+        try {
+            const response = await axiosInstance.get("/pdfchat");
+            const chats: PreviousChat[] = response.data;
+
+            const sortedChats = chats.sort((a, b) => {
+                const timestampA = new Date(a.created_at).getTime();
+                const timestampB = new Date(b.created_at).getTime();
+                return timestampB - timestampA;
+            });
+
+            setPreviousChats(sortedChats);
+            setIsInitialLoadComplete(true);
+            initializedRef.current = true;
+        } catch (error) {
+            console.error("Error fetching previous chats:", error);
+            setIsInitialLoadComplete(true);
+            initializedRef.current = true;
+        } finally {
+            setIsLoadingChats(false);
+            fetchingRef.current = false;
+        }
+    }, [session?.user?.accessToken, status]);
+
+    // Initial load effect
     useEffect(() => {
-        if (!isInitialLoadComplete) return;
+        if (status === "loading") return; // Wait for session to load
+        if (initializedRef.current) return; // Prevent multiple initializations
+        
+        fetchPreviousChats();
+    }, [fetchPreviousChats, status]);
+
+    // Helper function to update URL without page reload
+    const updateURL = useCallback((docId: string | null) => {
+        const url = docId ? `${pathname}?id=${docId}` : pathname;
+        router.replace(url, { scroll: false });
+    }, [pathname, router]);
+
+    // Handle docId changes
+    useEffect(() => {
+        if (!isInitialLoadComplete || status !== "authenticated") return;
 
         if (!docId) {
             setSelectedChatId(null);
@@ -85,9 +127,9 @@ export default function DocsPage() {
             setSelectedChatId(null);
             setMessages([]);
         }
-    }, [docId, previousChats, isInitialLoadComplete]);
+    }, [docId, previousChats, isInitialLoadComplete, status]);
 
-    const handleChatClick = (chatId: string) => {
+    const handleChatClick = useCallback((chatId: string) => {
         setSelectedChatId(chatId);
         setDocumentNotFound(false);
         updateURL(chatId);
@@ -95,9 +137,9 @@ export default function DocsPage() {
         if (window.innerWidth < 1024) {
             setIsSidebarOpen(false);
         }
-    };
+    }, [updateURL]);
 
-    const fetchChatHistory = async (chatId: string) => {
+    const fetchChatHistory = useCallback(async (chatId: string) => {
         setIsChatLoading(true);
         try {
             const response = await axiosInstance.get(`/pdfchat/history/${chatId}`);
@@ -132,9 +174,9 @@ export default function DocsPage() {
         } finally {
             setIsChatLoading(false);
         }
-    };
+    }, [docId]);
 
-    const handleNewChat = () => {
+    const handleNewChat = useCallback(() => {
         setSelectedChatId(null);
         setMessages([]);
         setFile(null);
@@ -143,9 +185,9 @@ export default function DocsPage() {
         
         // Update URL to clear document ID
         updateURL(null);
-    };
+    }, [updateURL]);
 
-    const handleUploadSuccess = (newDocId: string) => {
+    const handleUploadSuccess = useCallback((newDocId: string) => {
         setSelectedChatId(newDocId);
         setDocumentNotFound(false);
         
@@ -169,7 +211,16 @@ export default function DocsPage() {
         };
         
         fetchUpdatedChats();
-    };
+    }, [updateURL]);
+
+    // Don't render anything while session is loading
+    if (status === "loading") {
+        return (
+            <div className="h-screen flex items-center justify-center bg-background">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
 
     // Document not found component
     const DocumentNotFoundComponent = () => (
@@ -277,6 +328,7 @@ export default function DocsPage() {
                         setSelectedChatId={setSelectedChatId}
                         setMessages={setMessages}
                         setPreviousChats={setPreviousChats}
+                        onUploadSuccess={handleUploadSuccess}
                     />
                 ) : (
                     <Chat_window

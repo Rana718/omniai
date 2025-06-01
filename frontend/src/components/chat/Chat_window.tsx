@@ -248,9 +248,6 @@ function Chat_window({
                                                 <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                                                     {message.content}
                                                 </p>
-                                                <p className={`text-xs mt-2 opacity-70`}>
-                                                    {message.timestamp.toLocaleTimeString()}
-                                                </p>
                                             </div>
                                         </div>
                                     </motion.div>
