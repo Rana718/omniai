@@ -215,6 +215,16 @@
         -webkit-backdrop-filter: blur(10px);
     }
 
+    /* Hide scrollbar utility */
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+
     .hover-upload-zone:hover {
         background-color: var(--upload-hover-bg) !important;
         border-color: var(--primary) !important;
