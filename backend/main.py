@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from middleware.auth_middleware import JWTAuthMiddleware
 from fastapi.middleware.cors import CORSMiddleware
@@ -5,10 +6,20 @@ from dotenv import load_dotenv
 from routes import auth, pdfchat
 import uvicorn
 from db.db import init_db
+from config.redis_config import init_redis, close_redis
 
 load_dotenv()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("🚀 Starting up...")
+    await init_db()
+    await init_redis()
+    yield
+    print("🛑 Shutting down...")
+    await close_redis()
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  
@@ -17,9 +28,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-async def startup_event():
-    await init_db()
 
 app.add_middleware(JWTAuthMiddleware)
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
