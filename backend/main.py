@@ -7,6 +7,7 @@ from routes import auth, pdfchat
 import uvicorn
 from db.db import init_db
 from config.redis_config import init_redis, close_redis
+from config.pinecone import init_pinecone, get_pinecone_stats
 
 load_dotenv()
 @asynccontextmanager
@@ -14,6 +15,12 @@ async def lifespan(app: FastAPI):
     print("🚀 Starting up...")
     await init_db()
     await init_redis()
+    if init_pinecone():
+        pinecone_stats = get_pinecone_stats()
+        print(f"✅ Pinecone initialized - {pinecone_stats}")
+    else:
+        print("❌ Failed to initialize Pinecone")
+        
     yield
     print("🛑 Shutting down...")
     await close_redis()

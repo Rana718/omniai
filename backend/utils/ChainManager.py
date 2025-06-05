@@ -1,11 +1,14 @@
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
+from langchain_pinecone import PineconeVectorStore
 import asyncio
 import time
 from config.redis_config import get_redis
+from config.pinecone import get_pinecone_index
 from functools import lru_cache
 from .api_key import APIKeyManager
+import os
 
 CHAIN_TIMEOUT = 300
 api_key_manager = APIKeyManager()
@@ -40,13 +43,26 @@ class OptimizedChainManager:
         try:
             embeddings = await get_cached_embeddings()
             model = await self._get_pooled_model()
-            prompt_template = """Answer directly using the context. Be concise but complete.
+            
+            # Enhanced prompt template for better context understanding
+            prompt_template = """You are Jack, a helpful AI assistant. Answer the user's question using the provided context and conversation history.
 
-            History: {history}
-            Context: {context}
-            Question: {question}
+            INSTRUCTIONS:
+            - Be direct and informative
+            - Use the context to provide accurate answers
+            - If information isn't in the context, say so clearly
+            - Maintain conversation continuity using the history
 
-            Answer:"""
+            CONVERSATION HISTORY:
+            {history}
+
+            DOCUMENT CONTEXT:
+            {context}
+
+            USER QUESTION: {question}
+
+            ANSWER:"""
+            
             prompt = PromptTemplate(
                 template=prompt_template,
                 input_variables=["context", "question", "history"]
@@ -137,3 +153,26 @@ async def get_cached_embeddings():
         print(f"⚠️ Failed to cache embeddings marker in Redis: {e}")
 
     return embeddings
+
+async def get_pinecone_vector_store(doc_id: str, embeddings):
+    """Get or create Pinecone vector store for document"""
+    try:
+        index = get_pinecone_index()
+        
+        # Create namespace for the document
+        namespace = f"doc_{doc_id}"
+        
+        # Create PineconeVectorStore
+        vector_store = PineconeVectorStore(
+            index=index,
+            embedding=embeddings,
+            namespace=namespace,
+            text_key="text"
+        )
+        
+        print(f"✅ Connected to Pinecone vector store for doc_id: {doc_id}")
+        return vector_store
+        
+    except Exception as e:
+        print(f"❌ Error getting Pinecone vector store for {doc_id}: {e}")
+        raise
