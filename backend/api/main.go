@@ -21,11 +21,11 @@ func init() {
 		log.Println("Warning: .env file not found")
 	}
 	config.InitRedis()
+	
+	database.ConnectDatabase()
 }
 
 func main() {
-
-	database.ConnectDatabase()
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
