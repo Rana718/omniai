@@ -8,6 +8,7 @@ import (
 
     "apiserver/database"
     "apiserver/models"
+	"gorm.io/gorm"
     "github.com/gofiber/fiber/v2"
     "github.com/golang-jwt/jwt/v5"
 )
@@ -20,8 +21,8 @@ var (
 // Public URL patterns that don't require authentication
 var PUBLIC_URLS = []string{
     "/",
-    "/api/register",
-    "/api/login",
+    "/register",
+    "/login",
     "/health",
     "/docs/*",
     "/static/*",
@@ -133,11 +134,20 @@ func JWTAuthMiddleware() fiber.Handler {
                 })
             }
 
-            // Find user by email
+            // Find user by email with optimized query
             var user models.User
-            if result := database.DB.Where("email = ?", email).First(&user); result.Error != nil {
-                return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-                    "detail": "User not found",
+            err := database.DB.Select("id, email, name, image, created_at, updated_at").
+                Where("email = ?", email).
+                First(&user).Error
+                
+            if err != nil {
+                if err == gorm.ErrRecordNotFound {
+                    return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+                        "detail": "User not found",
+                    })
+                }
+                return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+                    "detail": "Database error occurred",
                 })
             }
 

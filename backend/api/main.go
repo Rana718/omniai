@@ -8,6 +8,7 @@ import (
 	"apiserver/middleware"
 
 	"apiserver/routes"
+	"apiserver/config"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -15,10 +16,14 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func main() {
+func init() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("Warning: .env file not found")
 	}
+	config.InitRedis()
+}
+
+func main() {
 
 	database.ConnectDatabase()
 
