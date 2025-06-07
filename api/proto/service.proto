@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package service;
+
+option go_package = "apiserver/proto/service;service";
+
+service Service {
+  rpc GetChats(ChatRequest) returns (ChatResponse);
+  rpc CreateChat(CreateRequest) returns (CreateResponse);
+}
+
+message ChatRequest {
+  string doc_id = 1;
+}
+
+message ChatResponse {
+  string ChatID = 1;
+  string Message = 2;
+  bool IsError = 3;
+}
+
+message CreateRequest {
+  string doc_id = 1;
+  string user_id = 2;
+  string doc_text = 3;
+}
+
+message CreateResponse {
+  string ChatID = 1;
+  string Message = 2;
+  bool IsError = 3;
+}
