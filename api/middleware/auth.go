@@ -21,8 +21,8 @@ var (
 
 var PUBLIC_URLS = []string{
 	"/",
-	"/api/auth/register",
-	"/api/auth/login",
+	"/register",
+	"/login",
 	"/health",
 	"/docs/*",
 	"/static/*",
