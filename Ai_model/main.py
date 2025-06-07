@@ -49,5 +49,9 @@ app.include_router(pdf_routes.app, prefix="/pdf", tags=["pdf"])
 async def root():
     return {"message": "Welcome to the PDF Processing API!"}
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

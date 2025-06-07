@@ -1,0 +1,21 @@
+services:
+  nginx-gateway:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: pdf-chatter-gateway
+    ports:
+      - "4050:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./logs/nginx:/var/log/nginx  
+    extra_hosts:
+      - "host.docker.internal:host-gateway" 
+    networks:
+      - pdf-chatter-network
+    restart: unless-stopped
+
+networks:
+  pdf-chatter-network:
+    driver: bridge
