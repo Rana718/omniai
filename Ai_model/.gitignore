@@ -1,0 +1,9 @@
+.venv
+
+text.py
+
+storage/
+
+**__pycache__/
+
+.env
