@@ -8,7 +8,6 @@ import (
 	"apiserver/models"
 )
 
-// Migration represents a database migration
 type Migration struct {
 	Name      string
 	Timestamp time.Time

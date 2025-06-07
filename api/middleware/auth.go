@@ -1,22 +1,14 @@
 package middleware
 
 import (
-	"encoding/json"
-	"os"
 	"path/filepath"
 	"strings"
-	"time"
-
-	"apiserver/config"
 	"apiserver/database"
 	"apiserver/models"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
-)
-
-var (
-	SECRET_KEY = getEnvOrDefault("JWT_SECRET", "supersecret")
+	"apiserver/helper"
 )
 
 var PUBLIC_URLS = []string{
@@ -28,12 +20,9 @@ var PUBLIC_URLS = []string{
 	"/static/*",
 }
 
-func getEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+var (
+	SECRET_KEY = helper.GetEnvOrDefault("JWT_SECRET", "supersecret")
+)
 
 func isPublicPath(path string) bool {
 	for _, pattern := range PUBLIC_URLS {
@@ -47,42 +36,6 @@ func isPublicPath(path string) bool {
 		}
 	}
 	return false
-}
-
-func getUserFromCache(email string) (*models.User, error) {
-	data, err := config.Client.Get(config.Ctx, "user:"+email).Result()
-	if err != nil {
-		return nil, err
-	}
-	var user models.User
-	if err := json.Unmarshal([]byte(data), &user); err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
-func setUserInCache(email string, user *models.User) {
-	data, err := json.Marshal(user)
-	if err != nil {
-		return
-	}
-	_ = config.Client.Set(config.Ctx, "user:"+email, data, 15*time.Minute).Err()
-}
-
-func ClearUserFromCache(email string) error {
-	return config.Client.Del(config.Ctx, "user:"+email).Err()
-}
-
-func GenerateToken(email string) (string, error) {
-	claims := jwt.MapClaims{
-		"sub": email,
-		"exp": time.Now().Add(30 * 24 * time.Hour).Unix(),
-		"iat": time.Now().Unix(),
-		"iss": "pdf-chatter-api",
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(SECRET_KEY))
 }
 
 func JWTAuthMiddleware() fiber.Handler {
@@ -116,7 +69,7 @@ func JWTAuthMiddleware() fiber.Handler {
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"detail": "Invalid token payload"})
 			}
 
-			user, err := getUserFromCache(email)
+			user, err := helper.GetUserFromCache(email)
 			if err != nil {
 				var dbUser models.User
 				result := database.DB.Select("id", "email", "name", "image", "created_at", "updated_at").
@@ -131,7 +84,7 @@ func JWTAuthMiddleware() fiber.Handler {
 				}
 
 				user = &dbUser
-				setUserInCache(email, user)
+				helper.SetUserInCache(email, user)
 			}
 
 			c.Locals("user", user)
