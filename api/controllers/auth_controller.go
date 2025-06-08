@@ -71,24 +71,20 @@ func Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	user, err := helper.GetUserFromCache(input.Email)
-	if err != nil || user == nil {
-		var dbUser models.User
-		if err := database.DB.Where("email = ?", input.Email).First(&dbUser).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
-			}
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database error occurred"})
+	var User models.User
+	if err := database.DB.Where("email = ?", input.Email).First(&User).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
 		}
-		user = &dbUser
-		helper.SetUserInCache(user.Email, user)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database error occurred"})
 	}
 
-	if err := user.CheckPassword(input.Password); err != nil {
+
+	if err := User.CheckPassword(input.Password); err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
 	}
 
-	token, err := helper.GenerateToken(user.Email)
+	token, err := helper.GenerateToken(User.Email)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
 	}
@@ -96,9 +92,9 @@ func Login(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message": "Login successful",
 		"user": fiber.Map{
-			"id":    user.ID,
-			"name":  user.Name,
-			"email": user.Email,
+			"id":    User.ID,
+			"name":  User.Name,
+			"email": User.Email,
 		},
 		"access_token": token,
 	})

@@ -44,6 +44,16 @@ class ServiceStub(object):
                 request_serializer=service__pb2.CreateRequest.SerializeToString,
                 response_deserializer=service__pb2.CreateResponse.FromString,
                 _registered_method=True)
+        self.AuthenticateUser = channel.unary_unary(
+                '/service.Service/AuthenticateUser',
+                request_serializer=service__pb2.AuthenticateRequest.SerializeToString,
+                response_deserializer=service__pb2.AuthenticateResponse.FromString,
+                _registered_method=True)
+        self.SystemStatus = channel.unary_unary(
+                '/service.Service/SystemStatus',
+                request_serializer=service__pb2.SystemStatusRequest.SerializeToString,
+                response_deserializer=service__pb2.SystemStatusResponse.FromString,
+                _registered_method=True)
 
 
 class ServiceServicer(object):
@@ -61,6 +71,18 @@ class ServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def AuthenticateUser(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SystemStatus(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_ServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -73,6 +95,16 @@ def add_ServiceServicer_to_server(servicer, server):
                     servicer.CreateChat,
                     request_deserializer=service__pb2.CreateRequest.FromString,
                     response_serializer=service__pb2.CreateResponse.SerializeToString,
+            ),
+            'AuthenticateUser': grpc.unary_unary_rpc_method_handler(
+                    servicer.AuthenticateUser,
+                    request_deserializer=service__pb2.AuthenticateRequest.FromString,
+                    response_serializer=service__pb2.AuthenticateResponse.SerializeToString,
+            ),
+            'SystemStatus': grpc.unary_unary_rpc_method_handler(
+                    servicer.SystemStatus,
+                    request_deserializer=service__pb2.SystemStatusRequest.FromString,
+                    response_serializer=service__pb2.SystemStatusResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -129,6 +161,60 @@ class Service(object):
             '/service.Service/CreateChat',
             service__pb2.CreateRequest.SerializeToString,
             service__pb2.CreateResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AuthenticateUser(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/service.Service/AuthenticateUser',
+            service__pb2.AuthenticateRequest.SerializeToString,
+            service__pb2.AuthenticateResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SystemStatus(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/service.Service/SystemStatus',
+            service__pb2.SystemStatusRequest.SerializeToString,
+            service__pb2.SystemStatusResponse.FromString,
             options,
             channel_credentials,
             insecure,

@@ -6,6 +6,7 @@ from routes import pdf_routes
 import uvicorn
 from utils.redis_config import init_redis, close_redis
 from utils.pinecone import init_pinecone, get_pinecone_stats
+from middleware.middleware import JWTAuthMiddleware
 
 
 load_dotenv()
@@ -43,6 +44,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(JWTAuthMiddleware)
+
 app.include_router(pdf_routes.app, prefix="/pdf", tags=["pdf"])
 
 @app.get("/")
@@ -52,6 +55,14 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+@app.get("/jwt-tok")
+async def jwt_token_example(request: Request):
+    user_id = request.state.user_id
+
+    if not user_id:
+        return {"error": "User ID not found in request state"}
+    return {"message": f"JWT token for user {user_id} is valid."}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
