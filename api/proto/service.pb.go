@@ -245,6 +245,182 @@ func (x *CreateResponse) GetIsError() bool {
 	return false
 }
 
+type AuthenticateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	JwtToken      string                 `protobuf:"bytes,1,opt,name=jwt_token,json=jwtToken,proto3" json:"jwt_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthenticateRequest) Reset() {
+	*x = AuthenticateRequest{}
+	mi := &file_proto_service_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthenticateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthenticateRequest) ProtoMessage() {}
+
+func (x *AuthenticateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_service_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthenticateRequest.ProtoReflect.Descriptor instead.
+func (*AuthenticateRequest) Descriptor() ([]byte, []int) {
+	return file_proto_service_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *AuthenticateRequest) GetJwtToken() string {
+	if x != nil {
+		return x.JwtToken
+	}
+	return ""
+}
+
+type AuthenticateResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	IsAuthenticate bool                   `protobuf:"varint,1,opt,name=isAuthenticate,proto3" json:"isAuthenticate,omitempty"`
+	UserId         string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AuthenticateResponse) Reset() {
+	*x = AuthenticateResponse{}
+	mi := &file_proto_service_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthenticateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthenticateResponse) ProtoMessage() {}
+
+func (x *AuthenticateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_service_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthenticateResponse.ProtoReflect.Descriptor instead.
+func (*AuthenticateResponse) Descriptor() ([]byte, []int) {
+	return file_proto_service_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *AuthenticateResponse) GetIsAuthenticate() bool {
+	if x != nil {
+		return x.IsAuthenticate
+	}
+	return false
+}
+
+func (x *AuthenticateResponse) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type SystemStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SystemStatusRequest) Reset() {
+	*x = SystemStatusRequest{}
+	mi := &file_proto_service_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SystemStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SystemStatusRequest) ProtoMessage() {}
+
+func (x *SystemStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_service_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SystemStatusRequest.ProtoReflect.Descriptor instead.
+func (*SystemStatusRequest) Descriptor() ([]byte, []int) {
+	return file_proto_service_proto_rawDescGZIP(), []int{6}
+}
+
+type SystemStatusResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SystemStatusResponse) Reset() {
+	*x = SystemStatusResponse{}
+	mi := &file_proto_service_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SystemStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SystemStatusResponse) ProtoMessage() {}
+
+func (x *SystemStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_service_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SystemStatusResponse.ProtoReflect.Descriptor instead.
+func (*SystemStatusResponse) Descriptor() ([]byte, []int) {
+	return file_proto_service_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SystemStatusResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_proto_service_proto protoreflect.FileDescriptor
 
 const file_proto_service_proto_rawDesc = "" +
@@ -263,11 +439,21 @@ const file_proto_service_proto_rawDesc = "" +
 	"\x0eCreateResponse\x12\x16\n" +
 	"\x06ChatID\x18\x01 \x01(\tR\x06ChatID\x12\x18\n" +
 	"\aMessage\x18\x02 \x01(\tR\aMessage\x12\x18\n" +
-	"\aIsError\x18\x03 \x01(\bR\aIsError2\x81\x01\n" +
+	"\aIsError\x18\x03 \x01(\bR\aIsError\"2\n" +
+	"\x13AuthenticateRequest\x12\x1b\n" +
+	"\tjwt_token\x18\x01 \x01(\tR\bjwtToken\"W\n" +
+	"\x14AuthenticateResponse\x12&\n" +
+	"\x0eisAuthenticate\x18\x01 \x01(\bR\x0eisAuthenticate\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x15\n" +
+	"\x13SystemStatusRequest\"0\n" +
+	"\x14SystemStatusResponse\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage2\x9f\x02\n" +
 	"\aService\x127\n" +
 	"\bGetChats\x12\x14.service.ChatRequest\x1a\x15.service.ChatResponse\x12=\n" +
 	"\n" +
-	"CreateChat\x12\x16.service.CreateRequest\x1a\x17.service.CreateResponseB!Z\x1fapiserver/proto/service;serviceb\x06proto3"
+	"CreateChat\x12\x16.service.CreateRequest\x1a\x17.service.CreateResponse\x12O\n" +
+	"\x10AuthenticateUser\x12\x1c.service.AuthenticateRequest\x1a\x1d.service.AuthenticateResponse\x12K\n" +
+	"\fSystemStatus\x12\x1c.service.SystemStatusRequest\x1a\x1d.service.SystemStatusResponseB!Z\x1fapiserver/proto/service;serviceb\x06proto3"
 
 var (
 	file_proto_service_proto_rawDescOnce sync.Once
@@ -281,20 +467,28 @@ func file_proto_service_proto_rawDescGZIP() []byte {
 	return file_proto_service_proto_rawDescData
 }
 
-var file_proto_service_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_proto_service_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_proto_service_proto_goTypes = []any{
-	(*ChatRequest)(nil),    // 0: service.ChatRequest
-	(*ChatResponse)(nil),   // 1: service.ChatResponse
-	(*CreateRequest)(nil),  // 2: service.CreateRequest
-	(*CreateResponse)(nil), // 3: service.CreateResponse
+	(*ChatRequest)(nil),          // 0: service.ChatRequest
+	(*ChatResponse)(nil),         // 1: service.ChatResponse
+	(*CreateRequest)(nil),        // 2: service.CreateRequest
+	(*CreateResponse)(nil),       // 3: service.CreateResponse
+	(*AuthenticateRequest)(nil),  // 4: service.AuthenticateRequest
+	(*AuthenticateResponse)(nil), // 5: service.AuthenticateResponse
+	(*SystemStatusRequest)(nil),  // 6: service.SystemStatusRequest
+	(*SystemStatusResponse)(nil), // 7: service.SystemStatusResponse
 }
 var file_proto_service_proto_depIdxs = []int32{
 	0, // 0: service.Service.GetChats:input_type -> service.ChatRequest
 	2, // 1: service.Service.CreateChat:input_type -> service.CreateRequest
-	1, // 2: service.Service.GetChats:output_type -> service.ChatResponse
-	3, // 3: service.Service.CreateChat:output_type -> service.CreateResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	4, // 2: service.Service.AuthenticateUser:input_type -> service.AuthenticateRequest
+	6, // 3: service.Service.SystemStatus:input_type -> service.SystemStatusRequest
+	1, // 4: service.Service.GetChats:output_type -> service.ChatResponse
+	3, // 5: service.Service.CreateChat:output_type -> service.CreateResponse
+	5, // 6: service.Service.AuthenticateUser:output_type -> service.AuthenticateResponse
+	7, // 7: service.Service.SystemStatus:output_type -> service.SystemStatusResponse
+	4, // [4:8] is the sub-list for method output_type
+	0, // [0:4] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -311,7 +505,7 @@ func file_proto_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_service_proto_rawDesc), len(file_proto_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

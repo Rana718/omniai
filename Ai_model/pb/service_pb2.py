@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rservice.proto\x12\x07service\"\x1d\n\x0b\x43hatRequest\x12\x0e\n\x06\x64oc_id\x18\x01 \x01(\t\"@\n\x0c\x43hatResponse\x12\x0e\n\x06\x43hatID\x18\x01 \x01(\t\x12\x0f\n\x07Message\x18\x02 \x01(\t\x12\x0f\n\x07IsError\x18\x03 \x01(\x08\"B\n\rCreateRequest\x12\x0e\n\x06\x64oc_id\x18\x01 \x01(\t\x12\x0f\n\x07user_id\x18\x02 \x01(\t\x12\x10\n\x08\x64oc_text\x18\x03 \x01(\t\"B\n\x0e\x43reateResponse\x12\x0e\n\x06\x43hatID\x18\x01 \x01(\t\x12\x0f\n\x07Message\x18\x02 \x01(\t\x12\x0f\n\x07IsError\x18\x03 \x01(\x08\x32\x81\x01\n\x07Service\x12\x37\n\x08GetChats\x12\x14.service.ChatRequest\x1a\x15.service.ChatResponse\x12=\n\nCreateChat\x12\x16.service.CreateRequest\x1a\x17.service.CreateResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rservice.proto\x12\x07service\"\x1d\n\x0b\x43hatRequest\x12\x0e\n\x06\x64oc_id\x18\x01 \x01(\t\"@\n\x0c\x43hatResponse\x12\x0e\n\x06\x43hatID\x18\x01 \x01(\t\x12\x0f\n\x07Message\x18\x02 \x01(\t\x12\x0f\n\x07IsError\x18\x03 \x01(\x08\"B\n\rCreateRequest\x12\x0e\n\x06\x64oc_id\x18\x01 \x01(\t\x12\x0f\n\x07user_id\x18\x02 \x01(\t\x12\x10\n\x08\x64oc_text\x18\x03 \x01(\t\"B\n\x0e\x43reateResponse\x12\x0e\n\x06\x43hatID\x18\x01 \x01(\t\x12\x0f\n\x07Message\x18\x02 \x01(\t\x12\x0f\n\x07IsError\x18\x03 \x01(\x08\"(\n\x13\x41uthenticateRequest\x12\x11\n\tjwt_token\x18\x01 \x01(\t\"?\n\x14\x41uthenticateResponse\x12\x16\n\x0eisAuthenticate\x18\x01 \x01(\x08\x12\x0f\n\x07user_id\x18\x02 \x01(\t\"\x15\n\x13SystemStatusRequest\"\'\n\x14SystemStatusResponse\x12\x0f\n\x07message\x18\x02 \x01(\t2\x9f\x02\n\x07Service\x12\x37\n\x08GetChats\x12\x14.service.ChatRequest\x1a\x15.service.ChatResponse\x12=\n\nCreateChat\x12\x16.service.CreateRequest\x1a\x17.service.CreateResponse\x12O\n\x10\x41uthenticateUser\x12\x1c.service.AuthenticateRequest\x1a\x1d.service.AuthenticateResponse\x12K\n\x0cSystemStatus\x12\x1c.service.SystemStatusRequest\x1a\x1d.service.SystemStatusResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -39,6 +39,14 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_CREATEREQUEST']._serialized_end=189
   _globals['_CREATERESPONSE']._serialized_start=191
   _globals['_CREATERESPONSE']._serialized_end=257
-  _globals['_SERVICE']._serialized_start=260
-  _globals['_SERVICE']._serialized_end=389
+  _globals['_AUTHENTICATEREQUEST']._serialized_start=259
+  _globals['_AUTHENTICATEREQUEST']._serialized_end=299
+  _globals['_AUTHENTICATERESPONSE']._serialized_start=301
+  _globals['_AUTHENTICATERESPONSE']._serialized_end=364
+  _globals['_SYSTEMSTATUSREQUEST']._serialized_start=366
+  _globals['_SYSTEMSTATUSREQUEST']._serialized_end=387
+  _globals['_SYSTEMSTATUSRESPONSE']._serialized_start=389
+  _globals['_SYSTEMSTATUSRESPONSE']._serialized_end=428
+  _globals['_SERVICE']._serialized_start=431
+  _globals['_SERVICE']._serialized_end=718
 # @@protoc_insertion_point(module_scope)

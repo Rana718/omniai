@@ -5,6 +5,8 @@ package service;
 service Service {
   rpc GetChats(ChatRequest) returns (ChatResponse);
   rpc CreateChat(CreateRequest) returns (CreateResponse);
+  rpc AuthenticateUser(AuthenticateRequest) returns (AuthenticateResponse);
+  rpc SystemStatus(SystemStatusRequest) returns (SystemStatusResponse);
 }
 
 message ChatRequest {
@@ -27,4 +29,19 @@ message CreateResponse {
   string ChatID = 1;
   string Message = 2;
   bool IsError = 3;
+}
+
+message AuthenticateRequest {
+  string jwt_token = 1;
+}
+
+message AuthenticateResponse{
+  bool isAuthenticate = 1;
+  string user_id = 2;
+}
+
+message SystemStatusRequest { }
+
+message SystemStatusResponse {
+  string message = 2;
 }

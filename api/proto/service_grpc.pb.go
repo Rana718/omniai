@@ -19,8 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Service_GetChats_FullMethodName   = "/service.Service/GetChats"
-	Service_CreateChat_FullMethodName = "/service.Service/CreateChat"
+	Service_GetChats_FullMethodName         = "/service.Service/GetChats"
+	Service_CreateChat_FullMethodName       = "/service.Service/CreateChat"
+	Service_AuthenticateUser_FullMethodName = "/service.Service/AuthenticateUser"
+	Service_SystemStatus_FullMethodName     = "/service.Service/SystemStatus"
 )
 
 // ServiceClient is the client API for Service service.
@@ -29,6 +31,8 @@ const (
 type ServiceClient interface {
 	GetChats(ctx context.Context, in *ChatRequest, opts ...grpc.CallOption) (*ChatResponse, error)
 	CreateChat(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error)
+	AuthenticateUser(ctx context.Context, in *AuthenticateRequest, opts ...grpc.CallOption) (*AuthenticateResponse, error)
+	SystemStatus(ctx context.Context, in *SystemStatusRequest, opts ...grpc.CallOption) (*SystemStatusResponse, error)
 }
 
 type serviceClient struct {
@@ -59,12 +63,34 @@ func (c *serviceClient) CreateChat(ctx context.Context, in *CreateRequest, opts 
 	return out, nil
 }
 
+func (c *serviceClient) AuthenticateUser(ctx context.Context, in *AuthenticateRequest, opts ...grpc.CallOption) (*AuthenticateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AuthenticateResponse)
+	err := c.cc.Invoke(ctx, Service_AuthenticateUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *serviceClient) SystemStatus(ctx context.Context, in *SystemStatusRequest, opts ...grpc.CallOption) (*SystemStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SystemStatusResponse)
+	err := c.cc.Invoke(ctx, Service_SystemStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ServiceServer is the server API for Service service.
 // All implementations must embed UnimplementedServiceServer
 // for forward compatibility.
 type ServiceServer interface {
 	GetChats(context.Context, *ChatRequest) (*ChatResponse, error)
 	CreateChat(context.Context, *CreateRequest) (*CreateResponse, error)
+	AuthenticateUser(context.Context, *AuthenticateRequest) (*AuthenticateResponse, error)
+	SystemStatus(context.Context, *SystemStatusRequest) (*SystemStatusResponse, error)
 	mustEmbedUnimplementedServiceServer()
 }
 
@@ -80,6 +106,12 @@ func (UnimplementedServiceServer) GetChats(context.Context, *ChatRequest) (*Chat
 }
 func (UnimplementedServiceServer) CreateChat(context.Context, *CreateRequest) (*CreateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateChat not implemented")
+}
+func (UnimplementedServiceServer) AuthenticateUser(context.Context, *AuthenticateRequest) (*AuthenticateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AuthenticateUser not implemented")
+}
+func (UnimplementedServiceServer) SystemStatus(context.Context, *SystemStatusRequest) (*SystemStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SystemStatus not implemented")
 }
 func (UnimplementedServiceServer) mustEmbedUnimplementedServiceServer() {}
 func (UnimplementedServiceServer) testEmbeddedByValue()                 {}
@@ -138,6 +170,42 @@ func _Service_CreateChat_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Service_AuthenticateUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AuthenticateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).AuthenticateUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_AuthenticateUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).AuthenticateUser(ctx, req.(*AuthenticateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Service_SystemStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SystemStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ServiceServer).SystemStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Service_SystemStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ServiceServer).SystemStatus(ctx, req.(*SystemStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Service_ServiceDesc is the grpc.ServiceDesc for Service service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -152,6 +220,14 @@ var Service_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateChat",
 			Handler:    _Service_CreateChat_Handler,
+		},
+		{
+			MethodName: "AuthenticateUser",
+			Handler:    _Service_AuthenticateUser_Handler,
+		},
+		{
+			MethodName: "SystemStatus",
+			Handler:    _Service_SystemStatus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

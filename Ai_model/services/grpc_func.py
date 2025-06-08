@@ -34,3 +34,13 @@ class ServiceClient:
             return None
         
         return response
+
+    async def authenticate_user(self, jwt_token):
+        request = service_pb2.AuthenticateRequest(jwt_token=jwt_token)
+        response = self.stub.AuthenticateUser(request)
+        if response.isAuthenticate:  # Changed from IsAuthenticate to isAuthenticate
+            print(f"User authenticated successfully: {response.user_id}")  # Changed from UserId to user_id
+            return response.user_id  # Changed from UserId to user_id
+        else:
+            print("Authentication failed")
+            return None
