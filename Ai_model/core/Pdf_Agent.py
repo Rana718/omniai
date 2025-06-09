@@ -2,13 +2,15 @@ import os
 import re
 import time
 import pytesseract
+import docx
+import docx2txt
 from PyPDF2 import PdfReader
 from collections import Counter
-from PIL import ImageFilter, ImageOps
+from PIL import ImageFilter, ImageOps, Image
 from langchain.schema import Document
 from pdf2image import convert_from_path
 from utils.redis_config import get_redis
-from utils.pinecone import get_pinecone_index, get_pinecone_stats
+from utils.pinecone import get_pinecone_index
 from concurrent.futures import ThreadPoolExecutor
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from utils.file_utils import save_files, append_history, load_history
@@ -17,10 +19,263 @@ import uuid
 from services.grpc_func import ServiceClient
 
 clinet = ServiceClient()
-
 chain_manager = OptimizedChainManager()
 user_patterns_cache = {}
 
+def count_words(text):
+    """Count words in text"""
+    return len(re.findall(r'\b\w+\b', text.strip()))
+
+def extract_text_from_txt(path):
+    """Extract text from TXT file"""
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except UnicodeDecodeError:
+        try:
+            with open(path, 'r', encoding='latin-1') as f:
+                return f.read()
+        except Exception as e:
+            print(f"❌ TXT extraction failed for {path}: {e}")
+            return ""
+    except Exception as e:
+        print(f"❌ TXT extraction failed for {path}: {e}")
+        return ""
+
+def extract_text_from_docx(path):
+    """Extract text from DOCX file"""
+    try:
+        doc = docx.Document(path)
+        text = ""
+        for paragraph in doc.paragraphs:
+            text += paragraph.text + "\n"
+        return text
+    except Exception as e:
+        print(f"❌ DOCX extraction failed for {path}: {e}")
+        return ""
+
+def extract_text_from_doc(path):
+    """Extract text from DOC file (requires python-docx2txt)"""
+    try:
+        return docx2txt.process(path)
+    except ImportError:
+        print("❌ docx2txt not installed. Cannot process .doc files")
+        return ""
+    except Exception as e:
+        print(f"❌ DOC extraction failed for {path}: {e}")
+        return ""
+
+def preprocess_image(img):
+    """Preprocess image for better OCR"""
+    return ImageOps.autocontrast(ImageOps.grayscale(img).filter(ImageFilter.SHARPEN))
+
+def extract_text_from_image(path):
+    """Extract text from image using OCR"""
+    try:
+        img = Image.open(path)
+        processed_img = preprocess_image(img)
+        text = pytesseract.image_to_string(processed_img)
+        return text
+    except Exception as e:
+        print(f"❌ Image OCR failed for {path}: {e}")
+        return ""
+
+def extract_text_from_pdf(path):
+    """Extract text from PDF using PyPDF2 and OCR fallback"""
+    text = ""
+    try:
+        reader = PdfReader(path)
+        images = convert_from_path(path)
+        for i, page in enumerate(reader.pages):
+            page_text = page.extract_text() or ""
+            if not page_text.strip() and i < len(images):
+                page_text = pytesseract.image_to_string(preprocess_image(images[i]))
+            text += page_text + "\n"
+    except Exception as e:
+        print(f"❌ PDF extraction failed for {path}: {e}")
+    return text
+
+def extract_text_from_file(path):
+    """Extract text from any supported file type"""
+    file_ext = os.path.splitext(path)[1].lower()
+    
+    extractors = {
+        '.pdf': extract_text_from_pdf,
+        '.txt': extract_text_from_txt,
+        '.docx': extract_text_from_docx,
+        '.doc': extract_text_from_doc,
+        '.png': extract_text_from_image,
+        '.jpg': extract_text_from_image,
+        '.jpeg': extract_text_from_image,
+        '.tiff': extract_text_from_image,
+        '.bmp': extract_text_from_image,
+    }
+    
+    extractor = extractors.get(file_ext)
+    if extractor:
+        print(f"📄 Extracting text from {file_ext} file: {os.path.basename(path)}")
+        return extractor(path)
+    else:
+        print(f"❌ Unsupported file type: {file_ext}")
+        return ""
+
+def extract_text_from_all_files(folder):
+    """Extract text from all supported files in folder using ThreadPoolExecutor"""
+    supported_extensions = {'.pdf', '.txt', '.doc', '.docx', '.png', '.jpg', '.jpeg', '.tiff', '.bmp'}
+    files = []
+    
+    for f in os.listdir(folder):
+        file_ext = '.' + f.split('.')[-1].lower()
+        if file_ext in supported_extensions:
+            files.append(os.path.join(folder, f))
+    
+    print(f"📁 Found {len(files)} supported files to process")
+    
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        texts = list(executor.map(extract_text_from_file, files))
+    
+    combined_text = "\n".join(filter(None, texts))
+    return combined_text
+
+def get_text_chunks(text):
+    """Split text into chunks for vector storage"""
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000, 
+        chunk_overlap=200,
+        length_function=len,
+        separators=["\n\n", "\n", " ", ""]
+    )
+    return splitter.split_text(text)
+
+async def process_files(user_id, doc_id, files, name):
+    """Process multiple file types and store in Pinecone"""
+    start_time = time.time()
+    
+    # Try to get or create chat (with error handling)
+    try:
+        chat = await clinet.get_chat(doc_id)
+        if not chat:
+            try:
+                response = await clinet.create_chat(doc_id, user_id, doc_text=name)
+                if not response:
+                    print(f"⚠️ Failed to create chat via gRPC, proceeding without chat creation")
+                else:
+                    print(f"✅ Created new chat for doc_id: {doc_id}")
+            except Exception as grpc_error:
+                print(f"⚠️ gRPC connection failed: {grpc_error}")
+                return{
+                    "error": "Chat service unavailable. Please try again later."
+                }
+        else:
+            print(f"✅ Using existing chat for doc_id: {doc_id}")
+    except Exception as e:
+        print(f"⚠️ Chat service unavailable: {e}")
+        print("📝 Proceeding with file processing without chat creation")
+    
+    # Process files
+    try:
+        folder = save_files(user_id, doc_id, files)
+        full_text = extract_text_from_all_files(folder)
+        
+        if not full_text.strip():
+            print(f"❌ No text extracted from {len(files)} files")
+            # Log file details for debugging
+            for file in files:
+                print(f"📄 File: {file.filename}, Size: {file.size if hasattr(file, 'size') else 'unknown'}")
+            
+            return {
+                "error": "No text could be extracted from the uploaded files. Please ensure your files contain readable text or try uploading different file formats (PDF, TXT, DOC, DOCX, or images with text)."
+            }
+        
+        # Count words in extracted text
+        word_count = count_words(full_text)
+        print(f"📊 Extracted {word_count} words from {len(files)} files")
+        
+        # Check minimum word requirement
+        if word_count < 20:
+            return {
+                "error": f"The extracted text contains only {word_count} words. A minimum of 20 words is required for processing. Please upload files with more text content."
+            }
+        
+        print(f"✅ Text validation passed: {word_count} words extracted")
+        
+        await cache_document_content(doc_id, full_text)
+        chunks = get_text_chunks(full_text)
+
+        print(f"📄 Created {len(chunks)} text chunks")
+        if chunks:
+            print(f"📝 First chunk preview: {chunks[0][:200]}...")
+            
+        embeddings = await get_cached_embeddings()
+        vector_store = await get_pinecone_vector_store(doc_id, embeddings)
+        
+        # Store in Pinecone
+        index = get_pinecone_index()
+        namespace = f"doc_{doc_id}"
+        
+        try:
+            existing_docs = index.query(
+                vector=[0.0] * 768, 
+                namespace=namespace,
+                top_k=1,
+                include_metadata=True
+            )
+            
+            if existing_docs.get('matches'):
+                print(f"📝 Adding to existing document collection in Pinecone")
+            else:
+                print(f"📝 Creating new document collection in Pinecone")
+        except Exception as e:
+            print(f"⚠️ Could not check existing docs: {e}")
+        
+        texts_with_metadata = []
+        metadatas = []
+        ids = []
+        
+        for i, chunk in enumerate(chunks):
+            if chunk.strip(): 
+                chunk_id = f"{doc_id}_chunk_{i}_{uuid.uuid4().hex[:8]}"
+                texts_with_metadata.append(chunk.strip())
+                metadatas.append({
+                    "doc_id": doc_id,
+                    "chunk_id": i,
+                    "user_id": user_id,
+                    "doc_name": name,
+                    "timestamp": time.time(),
+                    "file_types": [f.filename.split('.')[-1].lower() for f in files],
+                    "total_words": word_count
+                })
+                ids.append(chunk_id)
+        
+        if texts_with_metadata:
+            vector_store.add_texts(
+                texts=texts_with_metadata,
+                metadatas=metadatas,
+                ids=ids
+            )
+            
+            processing_time = time.time() - start_time
+            print(f"✅ Successfully processed {len(files)} files in {processing_time:.2f}s")
+            print(f"📊 Added {len(texts_with_metadata)} chunks to Pinecone for doc_id: {doc_id}")
+            
+            return {
+                "success": True,
+                "total_words": word_count,
+                "chunks_created": len(texts_with_metadata),
+                "files_processed": len(files)
+            }
+        else:
+            return {
+                "error": "No valid chunks could be created from the extracted text."
+            }
+        
+    except Exception as e:
+        print(f"❌ Error in file processing: {e}")
+        return {
+            "error": f"Failed to process files: {str(e)}"
+        }
+
+# Keep all other functions the same (answer_question, etc.)
 async def get_cached_vector_store(doc_id):
     """Get vector store from Pinecone with Redis caching"""
     redis_client = get_redis()
@@ -85,42 +340,6 @@ async def cache_response(doc_id, question, answer):
     except Exception:
         pass
 
-def preprocess_image(img):
-    """Preprocess image for better OCR"""
-    return ImageOps.autocontrast(ImageOps.grayscale(img).filter(ImageFilter.SHARPEN))
-
-def extract_text_from_pdf(path):
-    """Extract text from PDF using PyPDF2 and OCR fallback"""
-    text = ""
-    try:
-        reader = PdfReader(path)
-        images = convert_from_path(path)
-        for i, page in enumerate(reader.pages):
-            page_text = page.extract_text() or ""
-            if not page_text.strip() and i < len(images):
-                page_text = pytesseract.image_to_string(preprocess_image(images[i]))
-            text += page_text + "\n"
-    except Exception as e:
-        print(f"❌ PDF extraction failed for {path}: {e}")
-    return text
-
-def extract_text_from_all_pdfs(folder):
-    """Extract text from all PDFs in folder using ThreadPoolExecutor"""
-    files = [os.path.join(folder, f) for f in os.listdir(folder) if f.lower().endswith('.pdf')]
-    with ThreadPoolExecutor(max_workers=6) as executor:
-        texts = list(executor.map(extract_text_from_pdf, files))
-    return "\n".join(texts)
-
-def get_text_chunks(text):
-    """Split text into chunks for vector storage"""
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000, 
-        chunk_overlap=200,
-        length_function=len,
-        separators=["\n\n", "\n", " ", ""]
-    )
-    return splitter.split_text(text)
-
 async def learn_user_patterns(user_id, question, _):
     """Learn user patterns for better responses"""
     data = user_patterns_cache.setdefault(user_id, {
@@ -139,13 +358,10 @@ async def learn_user_patterns(user_id, question, _):
         data['preferred_length'] = 'long'
 
 async def optimized_content_search(question, vector_store, top_k=4):
-    """Optimized content search using Pinecone - FIXED VERSION"""
+    """Optimized content search using Pinecone"""
     try:
         print(f"🔍 Searching for: '{question}' in Pinecone")
-        docs = vector_store.similarity_search(
-            question, 
-            k=top_k
-        )
+        docs = vector_store.similarity_search(question, k=top_k)
         content = []
         for doc in docs:
             if doc.page_content and doc.page_content.strip():
@@ -157,7 +373,6 @@ async def optimized_content_search(question, vector_store, top_k=4):
         
     except Exception as e:
         print(f"❌ Error in content search: {e}")
-        
         try:
             print("🔄 Trying alternative search method...")
             results = vector_store.similarity_search_with_score(question, k=top_k)
@@ -167,92 +382,6 @@ async def optimized_content_search(question, vector_store, top_k=4):
         except Exception as e2:
             print(f"❌ Alternative search also failed: {e2}")
             return []
-
-async def process_pdf_files(user_id, doc_id, files, name):
-    """Process PDF files and store in Pinecone"""
-    start_time = time.time()
-    
-    chat = await clinet.get_chat(doc_id)
-    if not chat:
-        response = await clinet.create_chat(doc_id, user_id, doc_text=name)
-        if not response:
-            raise Exception("Failed to create chat")
-        print(f"✅ Created new chat for doc_id: {doc_id}")
-    else:
-        print(f"✅ Using existing chat for doc_id: {doc_id}")
-    
-    folder = save_files(user_id, doc_id, files)
-    full_text = extract_text_from_all_pdfs(folder)
-    
-    if not full_text.strip():
-        raise Exception("No text could be extracted from the uploaded files")
-    
-    print(f"📄 Extracted text from {len(files)} files")
-    
-    await cache_document_content(doc_id, full_text)
-    chunks = get_text_chunks(full_text)
-
-    print(f"📄 Created {len(chunks)} text chunks")
-    if chunks:
-        print(f"📝 First chunk preview: {chunks[0][:200]}...")
-    embeddings = await get_cached_embeddings()
-    vector_store = await get_pinecone_vector_store(doc_id, embeddings)
-    
-    try:
-        index = get_pinecone_index()
-        namespace = f"doc_{doc_id}"
-        try:
-            existing_docs = index.query(
-                vector=[0.0] * 768, 
-                namespace=namespace,
-                top_k=1,
-                include_metadata=True
-            )
-            
-            if existing_docs.get('matches'):
-                print(f"📝 Adding to existing document collection in Pinecone")
-            else:
-                print(f"📝 Creating new document collection in Pinecone")
-        except Exception as e:
-            print(f"⚠️ Could not check existing docs: {e}")
-        
-        texts_with_metadata = []
-        metadatas = []
-        ids = []
-        
-        for i, chunk in enumerate(chunks):
-            if chunk.strip(): 
-                chunk_id = f"{doc_id}_chunk_{i}_{uuid.uuid4().hex[:8]}"
-                texts_with_metadata.append(chunk.strip())
-                metadatas.append({
-                    "doc_id": doc_id,
-                    "chunk_id": i,
-                    "user_id": user_id,
-                    "doc_name": name,
-                    "timestamp": time.time()
-                })
-                ids.append(chunk_id)
-        
-        if texts_with_metadata:
-            vector_store.add_texts(
-                texts=texts_with_metadata,
-                metadatas=metadatas,
-                ids=ids
-            )
-            
-            processing_time = time.time() - start_time
-            print(f"✅ Successfully processed {len(files)} files in {processing_time:.2f}s")
-            print(f"📊 Added {len(texts_with_metadata)} chunks to Pinecone for doc_id: {doc_id}")
-        else:
-            print("⚠️ No valid chunks found to add to Pinecone")
-
-        stats = get_pinecone_stats()
-        if stats and not stats.get('error'):
-            print(f"📈 Pinecone Index Stats: {stats.get('total_vector_count', 'N/A')} total vectors")
-        
-    except Exception as e:
-        print(f"❌ Error adding documents to Pinecone: {e}")
-        raise
 
 async def answer_question(user_id, doc_id, question):
     """Answer question using Pinecone vector store"""
@@ -264,7 +393,7 @@ async def answer_question(user_id, doc_id, question):
     
     identity_keywords = ["model name", "what model", "your name", "who are you", "what are you", "ur name", "wat r u"]
     if any(k in question.lower() for k in identity_keywords):
-        answer = "My name is Jack. I'm an AI assistant designed to help you understand and analyze your PDF documents."
+        answer = "My name is Jack. I'm an AI assistant designed to help you understand and analyze your documents."
         await cache_response(doc_id, question, answer)
         await learn_user_patterns(user_id, question, "identity")
         return answer
@@ -289,7 +418,6 @@ async def answer_question(user_id, doc_id, question):
         
         print(f"📚 Using {len(context)} context pieces for answer generation")
         
-       
         history = load_history(doc_id)[-3:]
         history_str = "\n".join([f"Q: {h['question']}\nA: {h['answer']}" for h in history])
         docs = [Document(page_content=c) for c in context]
