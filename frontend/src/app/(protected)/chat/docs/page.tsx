@@ -69,7 +69,7 @@ export default function DocsPage() {
         setIsLoadingChats(true);
         
         try {
-            const response = await axiosInstance.get("/pdfchat");
+            const response = await axiosInstance.get("/api/pdfchat");
             const chats: PreviousChat[] = response.data;
 
             const sortedChats = chats.sort((a, b) => {
@@ -142,7 +142,7 @@ export default function DocsPage() {
     const fetchChatHistory = useCallback(async (chatId: string) => {
         setIsChatLoading(true);
         try {
-            const response = await axiosInstance.get(`/pdfchat/history/${chatId}`);
+            const response = await axiosInstance.get(`/api/pdfchat/${chatId}`);
             const history: HistoryItem[] = response.data.history;
 
             const historyMessages: Message[] = [];
@@ -197,7 +197,7 @@ export default function DocsPage() {
         // Refresh chat list
         const fetchUpdatedChats = async () => {
             try {
-                const response = await axiosInstance.get("/pdfchat");
+                const response = await axiosInstance.get("/api/pdfchat");
                 const chats: PreviousChat[] = response.data;
                 const sortedChats = chats.sort((a, b) => {
                     const timestampA = new Date(a.created_at).getTime();

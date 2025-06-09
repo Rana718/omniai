@@ -117,7 +117,7 @@ function Chat_window({
                 formData.append("files", file);
             });
 
-            const response = await axiosInstance.post("/pdfchat/upload", formData, {
+            const response = await axiosInstance.post("/ai/pdfchat/upload", formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },
@@ -174,7 +174,7 @@ function Chat_window({
             formData.append("doc_id", selectedChatId);
             formData.append("question", currentMessage);
 
-            const response = await axiosInstance.post("/pdfchat/ask", formData, {
+            const response = await axiosInstance.post("/ai/pdfchat/ask", formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },

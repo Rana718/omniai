@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
-import { FileText, ArrowRight, Sparkles } from "lucide-react";
+import { FileText, ArrowRight, Sparkles, Image, Globe, FileImage, FileCode, Files } from "lucide-react";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Feature } from "@/const";
@@ -27,6 +27,15 @@ function LandingPage() {
         whileTap: { scale: 0.95 },
     };
 
+    const floatingIcons = [
+        { icon: FileText, x: "10%", y: "20%", delay: 0, color: "from-red-500 to-red-600" },
+        { icon: Image, x: "85%", y: "15%", delay: 0.5, color: "from-blue-500 to-blue-600" },
+        { icon: Globe, x: "15%", y: "70%", delay: 1, color: "from-green-500 to-green-600" },
+        { icon: FileImage, x: "80%", y: "65%", delay: 1.5, color: "from-purple-500 to-purple-600" },
+        { icon: FileCode, x: "5%", y: "45%", delay: 2, color: "from-orange-500 to-orange-600" },
+        { icon: Files, x: "90%", y: "40%", delay: 2.5, color: "from-pink-500 to-pink-600" },
+    ];
+
     return (
         <div
             className="min-h-screen transition-colors duration-300"
@@ -37,7 +46,7 @@ function LandingPage() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
-                className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 md:px-8 lg:px-12 xl:px-20"
+                className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 md:px-8 lg:px-12 xl:px-20 backdrop-blur-md bg-white/10 dark:bg-black/10 border-b border-white/20 dark:border-white/10"
             >
                 <div className="flex items-center space-x-2">
                     <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
@@ -74,8 +83,37 @@ function LandingPage() {
             </motion.nav>
 
             {/* Hero Section */}
-            <section className="px-4 py-12 sm:px-6 sm:py-16 md:px-8 md:py-20 lg:px-12 xl:px-20">
-                <div className="max-w-7xl mx-auto">
+            <section className="relative px-4 py-12 sm:px-6 sm:py-16 md:px-8 md:py-20 lg:px-12 xl:px-20 pt-24 sm:pt-28 md:pt-32">
+                
+                <div className="hidden lg:block absolute inset-0 pointer-events-none">
+                    {floatingIcons.map((item, index) => (
+                        <motion.div
+                            key={index}
+                            className="absolute"
+                            style={{ left: item.x, top: item.y }}
+                            initial={{ opacity: 0, scale: 0, rotate: 0 }}
+                            animate={{
+                                opacity: [0.4, 0.7, 0.4],
+                                scale: [0.8, 1.2, 0.8],
+                                rotate: [0, 180, 360],
+                                y: [0, -30, 0],
+                            }}
+                            transition={{
+                                duration: 4,
+                                repeat: Infinity,
+                                repeatType: "loop",
+                                ease: "easeInOut",
+                                delay: item.delay,
+                            }}
+                        >
+                            <div className={`w-16 h-16 xl:w-20 xl:h-20 bg-gradient-to-br ${item.color} rounded-2xl flex items-center justify-center shadow-2xl backdrop-blur-sm`}>
+                                <item.icon className="w-8 h-8 xl:w-10 xl:h-10 text-white" />
+                            </div>
+                        </motion.div>
+                    ))}
+                </div>
+
+                <div className="max-w-7xl mx-auto relative z-10">
                     <motion.div
                         variants={staggerContainer}
                         initial="initial"
@@ -84,17 +122,12 @@ function LandingPage() {
                     >
                         <motion.div
                             variants={fadeInUp}
-                            className="mb-4 sm:mb-6"
+                            className="mb-8"
                         >
-                            <span
-                                className="inline-flex items-center px-2 py-1 sm:px-3 rounded-full text-xs sm:text-sm font-medium mb-4"
-                                style={{
-                                    backgroundColor: "var(--secondary)",
-                                    color: "var(--secondary-foreground)",
-                                }}
-                            >
-                                <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                                Powered by AI
+                            <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium mb-6 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 border border-indigo-200 dark:border-indigo-800 backdrop-blur-sm"
+                                style={{ color: "var(--foreground)" }}>
+                                <Sparkles className="w-4 h-4 mr-2 animate-pulse" />
+                                Powered by Advanced AI
                             </span>
                         </motion.div>
 
@@ -149,6 +182,7 @@ function LandingPage() {
                     </motion.div>
                 </div>
             </section>
+
 
             {/* Features Section */}
             <section

@@ -1,8 +1,11 @@
 import axios from "axios";
 import { getSession, signOut } from "next-auth/react";
 
+
+const api_key = process.env.NEXT_PUBLIC_API_KEY;
+
 const axiosInstance = axios.create({
-    baseURL: "http://localhost:8000",
+    baseURL: api_key || "http://localhost:4050"
 });
 
 axiosInstance.interceptors.request.use(

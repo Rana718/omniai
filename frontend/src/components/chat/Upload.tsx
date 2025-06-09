@@ -52,7 +52,7 @@ export default function UploadFile({
             formData.append("doc_name", finalChatName);
 
             const response = await axiosInstance.post(
-                "/pdfchat/upload",
+                "/ai/pdfchat/upload",
                 formData,
                 {
                     headers: {
@@ -74,7 +74,7 @@ export default function UploadFile({
             setSelectedChatId(response.data.doc_id);
             onUploadSuccess?.(response.data.doc_id);
 
-            const updatedResponse = await axiosInstance.get("/pdfchat");
+            const updatedResponse = await axiosInstance.get("/api/pdfchat");
             const updatedChats: PreviousChat[] = updatedResponse.data;
             const sortedUpdatedChats = updatedChats.sort((a, b) => {
                 const timestampA = new Date(a.created_at).getTime();

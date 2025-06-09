@@ -40,7 +40,7 @@ function ChatPage() {
             
             setIsLoading(true);
             try {
-                const response = await api.get(`/pdfchat/history/${id}`);
+                const response = await api.get(`/api/pdfchat/${id}`);
                 const history: HistoryItem[] = response.data;
                 
                 // Convert history to messages format
@@ -90,7 +90,7 @@ function ChatPage() {
             formData.append("doc_id", id as string);
             formData.append("question", userMessage.content);
 
-            const response = await api.post("/pdfchat/ask", formData, {
+            const response = await api.post("/ai/pdfchat/ask", formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },

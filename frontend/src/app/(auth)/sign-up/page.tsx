@@ -25,7 +25,7 @@ export default function SignUp() {
         setError("");
 
         try {
-            await axios.post(`${api_key}/auth/signup/`, {
+            await axios.post(`${api_key}/api/register`, {
                 email,
                 password,
                 name,

@@ -19,7 +19,7 @@ const handler = NextAuth({
                 }
 
                 try {
-                    const response = await axios.post(`${api_key}/auth/login`, {
+                    const response = await axios.post(`${api_key}/api/login`, {
                         email: credentials.email,
                         password: credentials.password,
                     });
