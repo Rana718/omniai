@@ -15,7 +15,7 @@ Dockerfile*
 .env.local
 .env.*.local
 node_modules/
-storage/uploads/*
+storage/
 !storage/uploads/.gitkeep
 logs/
 *.log
