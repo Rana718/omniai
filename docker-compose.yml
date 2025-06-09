@@ -20,7 +20,7 @@ services:
     container_name: pdf-chatter-rabbitmq
     ports:
       - "5672:5672"
-      - "15672:15672"  # Management UI
+      - "15672:15672" 
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
@@ -39,13 +39,13 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DATABASE_URL=postgresql://postgres.dkfjfwkbjrbxqrdlbkmb:go123468790test@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
+      - DATABASE_URL=postgresql://postgres:localhost:5432/pdf_chatter?sslmode=disable
       - JWT_SECRET=your_jwt_secret_key
       - PORT=8080
       - REDIS_URL=redis://redis:6379
       - JWT_KEYS=pdf-chatter-api-keys
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
-    networks:
+    networks: 
       - pdf-chatter-network
     depends_on:
       - redis
@@ -61,12 +61,10 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - GOOGLE_API_KEY1=AIzaSyDjCfCbjYkp3Cwlxfz2q7lhlKtqvPUm3jU
-      - GOOGLE_API_KEY2=AIzaSyAtZkjpaBslmXKV4GFgfQpngd_AIFuXgOo
-      - GOOGLE_API_KEY3=AIzaSyDHkMwyPE-FoxvEDzip9VWLlgA7k2QJ3Xw
-      - GOOGLE_API_KEY4=AIzaSyB9v1pgcNrvzaIXSdnaDivJ6koii1dx66w
-      - GOOGLE_API_KEY5=AIzaSyDgNExCuRh35ktGZXLj3kSM2fynWX4Qcyw
-      - PINECONE_API_KEY=pcsk_6X8QCr_GY8GSj3eUGA9NrWmp4K88qmtsiKA42DYP6Ai2rb8TgtRBwdNpdNWZGGfvyt6y3M
+      - GOOGLE_API_KEY1=GOOGLE_API_KEY1
+      - GOOGLE_API_KEY2=GOOGLE_API_KEY2
+      - GOOGLE_API_KEY3=GOOGLE_API_KEY3
+      - PINECONE_API_KEY=PINECONE_API_KEY_PLACEHOLDER
       - PINECONE_INDEX_NAME=pdf-chatter-docs
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
