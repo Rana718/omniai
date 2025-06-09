@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { motion } from "framer-motion";
-import { FileText, ArrowRight, Sparkles, Image, Globe, FileImage, FileCode, Files } from "lucide-react";
+import { FileText, ArrowRight, Sparkles, Image, Globe, FileImage, FileCode, Files, Brain } from "lucide-react";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Feature } from "@/const";
@@ -50,10 +50,10 @@ function LandingPage() {
             >
                 <div className="flex items-center space-x-2">
                     <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
-                        <FileText className="w-3 h-3 sm:w-5 sm:h-5 text-white" />
+                        <Brain className="w-3 h-3 sm:w-5 sm:h-5 text-white" />
                     </div>
                     <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                        PDF Chatter
+                        OmniAI
                     </span>
                 </div>
                 <div className="flex items-center space-x-2 sm:space-x-4">

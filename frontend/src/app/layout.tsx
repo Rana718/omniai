@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "PDF Chatter - Chat with Your PDFs",
-    description:
-        "Transform your PDF documents into interactive conversations. Upload, ask questions, and get instant answers powered by advanced AI technology.",
+    title: "OmniAI | Intelligent Document Chat Platform",
+    description: "Chat with your documents using OmniAI's advanced AI technology. Upload PDFs, DOCs, and more for instant insights and answers through natural language conversations.",
+    keywords: "OmniAI, document chat, AI chat, PDF chat, document analysis, AI assistant, document intelligence, natural language processing",
 };
 
 export default function RootLayout({
