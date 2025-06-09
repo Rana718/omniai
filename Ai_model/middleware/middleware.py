@@ -11,7 +11,7 @@ grpc_client = ServiceClient()
 class JWTAuthMiddleware(BaseHTTPMiddleware):
     def __init__(self, app):
         super().__init__(app)
-        self.public_routes = {"/", "/sys", "/health" }
+        self.public_routes = {"/", "/sys", "/health", "/metrics" }
     
     def is_public_route(self, path: str) -> bool:
         """Check if the route is public and doesn't require authentication"""
