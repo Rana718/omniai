@@ -21,7 +21,7 @@ func ConnectDatabase() {
 
     config := &gorm.Config{
         Logger: logger.Default.LogMode(logger.Warn), 
-        PrepareStmt: true, 
+        PrepareStmt: false, 
         DisableForeignKeyConstraintWhenMigrating: false,
     }
 
