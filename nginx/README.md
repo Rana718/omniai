@@ -1,19 +1,37 @@
 # PDF Chater Nginx Gateway
 
-Nginx configuration for routing traffic between the different services of the PDF Chater application.
+A high-performance Nginx configuration for routing traffic between the different services of the PDF Chater application, with advanced rate limiting, security features, and error handling.
 
 ## Overview
 
-This Nginx setup serves as an API gateway for the PDF Chater application, routing traffic to the appropriate microservices:
+This Nginx setup serves as an API gateway for the PDF Chater application, providing:
 
-- Frontend (Next.js)
-- API Service (Go)
-- AI Model Service (Python/FastAPI)
+- **Traffic Routing**: Direct requests to appropriate microservices
+- **Rate Limiting**: Prevent abuse and ensure fair resource allocation
+- **Error Handling**: Consistent error responses across services
+- **Logging**: Detailed access and error logging
+- **Security**: Basic protection against common web vulnerabilities
+
+## Service Routing
+
+The gateway routes traffic to the following services:
+
+- **API Service (Go)**: User authentication, document management, and chat history
+- **AI Model Service (Python/FastAPI)**: Document processing and question answering
 
 ## Configuration Files
 
-- `nginx.conf`: Main Nginx configuration file
-- `conf.d/`: Directory containing service-specific configurations
+- `nginx.conf`: Main Nginx configuration with global settings
+- `conf.d/gateway.conf`: Service-specific routing and rate limiting rules
+
+## Rate Limiting Configuration
+
+The gateway implements different rate limits for various endpoints:
+
+- **General Endpoints**: 10 requests per second with burst of 5
+- **API Endpoints**: 15 requests per second with burst of 10
+- **AI Endpoints**: 3 requests per second with burst of 5 (resource-intensive operations)
+- **Authentication Endpoints**: 5 requests per second with burst of 3 (security-sensitive)
 
 ## Docker Configuration
 
@@ -52,39 +70,114 @@ docker-compose up
 The main configuration in `nginx.conf` sets up:
 
 - Worker processes and connections
-- MIME types
-- Logging formats
-- HTTP settings
-- Includes for service-specific configurations
+- MIME types and compression settings
+- Logging formats and locations
+- Rate limiting zones
+- Connection limiting
+- Performance optimizations
 
-### Service Routing
+### Gateway Configuration
 
-The service-specific configurations in `conf.d/` handle:
+The gateway configuration in `conf.d/gateway.conf` handles:
 
-- Routing rules for each service
-- Load balancing (if applicable)
-- SSL/TLS settings (if configured)
-- Headers and proxy settings
+- Endpoint routing rules
+- Rate limit application
+- Request/response headers
+- Timeout settings
+- Error page definitions
+
+## Logging
+
+Nginx logs are stored in the `logs/nginx` directory and include:
+
+- `access.log`: Standard access logs
+- `error.log`: Error logs
+- `gateway_access.log`: Gateway-specific access logs
+- `gateway_error.log`: Gateway-specific error logs
+- `rate_limit.log`: Rate limiting events
+- `auth_rate_limit.log`: Authentication rate limiting events
+- `api_rate_limit.log`: API rate limiting events
+- `ai_rate_limit.log`: AI service rate limiting events
+
+## Security Features
+
+- **Rate Limiting**: Prevents brute force and DoS attacks
+- **Connection Limiting**: Maximum 20 connections per client IP
+- **Request Timeouts**: Prevents slow client attacks
+- **Error Handling**: No sensitive information in error responses
+- **Headers**: Security-related headers for API responses
+
+## Performance Optimizations
+
+- **Gzip Compression**: Reduces bandwidth usage
+- **Keepalive Connections**: Reduces connection overhead
+- **Buffer Tuning**: Optimized for typical API traffic
+- **Worker Process Configuration**: Auto-scaled based on CPU cores
 
 ## Customization
 
 To modify the routing or add new services:
 
-1. Edit or add configuration files in the `conf.d/` directory
+1. Edit the configuration files in the `nginx/` directory
 2. Restart the Nginx container:
    ```bash
    docker-compose restart nginx-gateway
    ```
 
-## Logs
+### Adding a New Service
 
-Nginx logs are stored in the `logs/nginx` directory and include:
+To add a new service to the gateway:
 
-- Access logs
-- Error logs
+1. Add a new location block to `conf.d/gateway.conf`:
+   ```nginx
+   location /new-service/ {
+       limit_req zone=general burst=5 nodelay;
+       
+       rewrite ^/new-service/(.*)$ /$1 break;
+       
+       proxy_pass http://new-service:port;
+       proxy_set_header Host $host;
+       proxy_set_header X-Real-IP $remote_addr;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto $scheme;
+   }
+   ```
 
-## Security Considerations
+2. Add the service to the Docker network in `docker-compose.yml`
 
-- The Nginx configuration should be reviewed for security best practices
-- Consider adding rate limiting for API endpoints
-- Implement proper SSL/TLS for production deployments
+## Monitoring
+
+The gateway includes a status endpoint for monitoring:
+
+```
+GET /nginx_status
+```
+
+This endpoint is restricted to internal network access and provides information about:
+- Active connections
+- Request statistics
+- Connection states
+
+## Health Check
+
+A simple health check endpoint is available:
+
+```
+GET /health
+```
+
+This returns a 200 OK response with "healthy" text, useful for container orchestration systems.
+
+## Production Considerations
+
+For production deployment, consider:
+
+- Adding SSL/TLS configuration
+- Implementing more advanced security measures
+- Setting up log rotation
+- Configuring a CDN for static assets
+- Implementing more detailed monitoring
+
+## License
+
+[Your License]
