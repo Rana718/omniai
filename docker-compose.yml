@@ -1,4 +1,90 @@
+version: '3.8'
+
 services:
+  # Redis service
+  redis:
+    image: redis:alpine
+    container_name: pdf-chatter-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - pdf-chatter-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # RabbitMQ service
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    container_name: pdf-chatter-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"  # Management UI
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - pdf-chatter-network
+    restart: unless-stopped
+
+  # Go API service
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: pdf-chatter-api
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgresql://postgres.dkfjfwkbjrbxqrdlbkmb:go123468790test@aws-0-ap-south-1.pooler.supabase.com:6543/postgres
+      - JWT_SECRET=your_jwt_secret_key
+      - PORT=8080
+      - REDIS_URL=redis://redis:6379
+      - JWT_KEYS=pdf-chatter-api-keys
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    networks:
+      - pdf-chatter-network
+    depends_on:
+      - redis
+      - rabbitmq
+    restart: unless-stopped
+
+  # Python AI service
+  ai-model:
+    build:
+      context: ./Ai_model
+      dockerfile: Dockerfile
+    container_name: pdf-chatter-ai-model
+    ports:
+      - "8000:8000"
+    environment:
+      - GOOGLE_API_KEY1=AIzaSyDjCfCbjYkp3Cwlxfz2q7lhlKtqvPUm3jU
+      - GOOGLE_API_KEY2=AIzaSyAtZkjpaBslmXKV4GFgfQpngd_AIFuXgOo
+      - GOOGLE_API_KEY3=AIzaSyDHkMwyPE-FoxvEDzip9VWLlgA7k2QJ3Xw
+      - GOOGLE_API_KEY4=AIzaSyB9v1pgcNrvzaIXSdnaDivJ6koii1dx66w
+      - GOOGLE_API_KEY5=AIzaSyDgNExCuRh35ktGZXLj3kSM2fynWX4Qcyw
+      - PINECONE_API_KEY=pcsk_6X8QCr_GY8GSj3eUGA9NrWmp4K88qmtsiKA42DYP6Ai2rb8TgtRBwdNpdNWZGGfvyt6y3M
+      - PINECONE_INDEX_NAME=pdf-chatter-docs
+      - REDIS_URL=redis://redis:6379
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - GRPC_SERVER_ADDRESS=api:50051
+      - PYTHONUNBUFFERED=1
+      - PORT=8000
+    volumes:
+      - ./Ai_model/storage:/app/storage
+      - ./logs/ai:/app/logs
+    networks:
+      - pdf-chatter-network
+    depends_on:
+      - redis
+      - rabbitmq
+      - api
+    restart: unless-stopped
+
+  # Nginx Gateway
   nginx-gateway:
     build:
       context: ./nginx
@@ -9,12 +95,17 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./logs/nginx:/var/log/nginx  
-    extra_hosts:
-      - "host.docker.internal:host-gateway" 
+      - ./logs/nginx:/var/log/nginx
     networks:
       - pdf-chatter-network
+    depends_on:
+      - api
+      - ai-model
     restart: unless-stopped
+
+volumes:
+  redis_data:
+  rabbitmq_data:
 
 networks:
   pdf-chatter-network:
