@@ -1,14 +1,15 @@
 package services
 
 import (
-    "apiserver/database"
-    "apiserver/models"
-    "encoding/json"
-    "log"
-    "time"
+	"apiserver/database"
+	"apiserver/helper"
+	"apiserver/models"
+	"encoding/json"
+	"log"
+	"time"
 
-    "github.com/streadway/amqp"
-    "gorm.io/gorm"
+	"github.com/streadway/amqp"
+	"gorm.io/gorm"
 )
 
 type QAMessage struct {
@@ -23,7 +24,8 @@ var messageBuffer []QAMessage
 var bufferTicker *time.Ticker
 
 func InitRabbitMQConsumer() {
-    conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+    reabbitmq := helper.GetEnvOrDefault("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+    conn, err := amqp.Dial(reabbitmq)
     if err != nil {
         log.Fatalf("Failed to connect to RabbitMQ: %v", err)
     }

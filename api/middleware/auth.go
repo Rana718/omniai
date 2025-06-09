@@ -18,6 +18,7 @@ var PUBLIC_URLS = []string{
 	"/health",
 	"/docs/*",
 	"/static/*",
+	"/metrics",
 }
 
 var (
