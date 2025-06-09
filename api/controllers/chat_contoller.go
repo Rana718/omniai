@@ -5,35 +5,47 @@ import (
 	"apiserver/database"
 	"apiserver/models"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"time"
+
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
 
+type ChatResponse struct {
+	DocID     string `json:"doc_id"`
+	DocText   string `json:"doc_text"`
+	CreatedAt string `json:"created_at"`
+	UserID    string `json:"user_id"`
+}
+
 func GetAllChats(c *fiber.Ctx) error {
 	user := c.Locals("user").(*models.User)
 	userID := user.ID
+
+	cacheKey := fmt.Sprintf("user_chats:%s", userID)
+	cachedData, err := config.Client.Get(config.Ctx, cacheKey).Result()
+
+	if err == nil {
+		var cachedChats []ChatResponse
+		if json.Unmarshal([]byte(cachedData), &cachedChats) == nil {
+			return c.JSON(cachedChats)
+		}
+	}
 
 	var chats []models.Chat
 
 	result := database.DB.
 		Select("doc_id, doc_text, created_at, user_id").
 		Where("user_id = ?", userID).
-		Order("created_at DESC"). 
+		Order("created_at DESC").
 		Find(&chats)
 
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch chats",
 		})
-	}
-
-	type ChatResponse struct {
-		DocID     string `json:"doc_id"`
-		DocText   string `json:"doc_text"`
-		CreatedAt string `json:"created_at"`
-		UserID    string `json:"user_id"`
 	}
 
 	var response []ChatResponse
@@ -45,6 +57,9 @@ func GetAllChats(c *fiber.Ctx) error {
 			UserID:    chat.UserID,
 		})
 	}
+	
+	responseJSON, _ := json.Marshal(response)
+    config.Client.Set(config.Ctx, cacheKey, responseJSON, 10*time.Minute)
 
 	return c.JSON(response)
 }

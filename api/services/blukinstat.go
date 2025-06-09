@@ -62,7 +62,7 @@ func InitRabbitMQConsumer() {
         log.Fatalf("Failed to register a consumer: %v", err)
     }
 
-    bufferTicker = time.NewTicker(5 * time.Minute)
+    bufferTicker = time.NewTicker(30 * time.Second)
     go bulkInsertWorker()
 
     log.Println("RabbitMQ Consumer started. Waiting for messages...")
