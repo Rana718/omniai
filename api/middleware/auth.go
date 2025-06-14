@@ -1,14 +1,16 @@
 package middleware
 
 import (
+	"apiserver/database"
+	"apiserver/database/repo"
+	"apiserver/helper"
+	"context"
 	"path/filepath"
 	"strings"
-	"apiserver/database"
-	"apiserver/models"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
-	"gorm.io/gorm"
-	"apiserver/helper"
+	"github.com/jackc/pgx/v5"
 )
 
 var PUBLIC_URLS = []string{
@@ -72,13 +74,12 @@ func JWTAuthMiddleware() fiber.Handler {
 
 			user, err := helper.GetUserFromCache(email)
 			if err != nil {
-				var dbUser models.User
-				result := database.DB.Select("id", "email", "name", "image", "created_at", "updated_at").
-					Where("email = ?", email).
-					First(&dbUser)
+				ctx := context.Background()
+				var dbUser repo.User
+				dbUser, err := database.DBStore.GetUserByEmail(ctx, email)
 
-				if result.Error != nil {
-					if result.Error == gorm.ErrRecordNotFound {
+				if err != nil {
+					if err == pgx.ErrNoRows {
 						return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"detail": "User not found"})
 					}
 					return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"detail": "Database error"})

@@ -363,3 +363,94 @@ The API service is configured to be built and run as part of the main Docker Com
 ## License
 
 [Your License]
+
+## Database Migrations
+
+This project includes a custom Go-based migration system for managing database schema changes.
+
+### Quick Start with Migrations
+
+```bash
+# Run all pending migrations
+./migrate.sh up
+
+# Check migration status
+./migrate.sh status
+
+# Rollback 1 migration
+./migrate.sh down
+
+# Rollback 3 migrations
+./migrate.sh down 3
+
+# Reset database (WARNING: drops all data)
+./migrate.sh reset
+```
+
+### Using Make Commands
+
+```bash
+# Run migrations
+make migrate-up
+
+# Check status
+make migrate-status
+
+# Rollback migrations
+make migrate-down
+make migrate-down-steps STEPS=3
+
+# Reset database
+make migrate-reset
+```
+
+### Docker Migrations
+
+```bash
+# Run migrations in Docker
+docker-compose -f docker-compose.migrate.yml up migrate
+
+# Check migration status
+docker-compose -f docker-compose.migrate.yml up migrate-status
+
+# Rollback migrations
+docker-compose -f docker-compose.migrate.yml up migrate-down
+```
+
+### Migration Features
+
+- **Transaction Safety**: Each migration runs in a transaction
+- **Version Tracking**: Keeps track of applied migrations
+- **Rollback Support**: All migrations include rollback SQL
+- **Status Checking**: View current migration status
+- **Reset Functionality**: Drop all tables and start fresh
+
+For detailed migration documentation, see [cmd/migrate/README.md](cmd/migrate/README.md).
+
+### Database Schema
+
+The migration system manages these tables:
+
+- **users**: User accounts with authentication
+- **chats**: PDF document chat sessions
+- **qa_histories**: Question-answer pairs for each chat
+- **schema_migrations**: Migration version tracking
+
+### Adding New Migrations
+
+To add a new migration, edit `cmd/migrate/main.go` and add to the `migrations` slice:
+
+```go
+{
+    Version: 5,
+    Name:    "add_user_preferences",
+    Up: `
+        ALTER TABLE users ADD COLUMN preferences JSONB DEFAULT '{}';
+        CREATE INDEX IF NOT EXISTS idx_users_preferences ON users USING GIN (preferences);
+    `,
+    Down: `
+        DROP INDEX IF EXISTS idx_users_preferences;
+        ALTER TABLE users DROP COLUMN IF EXISTS preferences;
+    `,
+},
+```

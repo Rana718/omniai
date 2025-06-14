@@ -2,31 +2,32 @@ package helper
 
 import (
 	"apiserver/config"
-	"apiserver/models"
+	"apiserver/database/repo"
 	"encoding/json"
 	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
 	SECRET_KEY = GetEnvOrDefault("JWT_SECRET", "supersecret")
 )
 
-func GetUserFromCache(email string) (*models.User, error) {
+func GetUserFromCache(email string) (*repo.User, error) {
 	data, err := config.Client.Get(config.Ctx, "user:"+email).Result()
 	if err != nil {
 		return nil, err
 	}
-	var user models.User
+	var user repo.User
 	if err := json.Unmarshal([]byte(data), &user); err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
-func SetUserInCache(email string, user *models.User) {
+func SetUserInCache(email string, user *repo.User) {
 	data, err := json.Marshal(user)
 	if err != nil {
 		return
@@ -51,4 +52,16 @@ func GetEnvOrDefault(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func HashPassword(password string) (string, error) {
+    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+    if err != nil {
+        return "", err
+    }
+    return string(hashedPassword), nil
+}
+
+func CheckPassword(hashedPassword, password string) error {
+    return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }

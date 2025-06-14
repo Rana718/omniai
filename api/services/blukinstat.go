@@ -2,21 +2,22 @@ package services
 
 import (
 	"apiserver/database"
+	"apiserver/database/repo"
 	"apiserver/helper"
-	"apiserver/models"
+	"context"
 	"encoding/json"
 	"log"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/streadway/amqp"
-	"gorm.io/gorm"
 )
 
 type QAMessage struct {
     DocID    string `json:"doc_id"`
     Question string `json:"question"`
     Answer   string `json:"answer"`
-	ID        string `json:"id"`       
+	ID       string `json:"id"`       
     Timestamp string `json:"timestamp"`
 }
 
@@ -24,8 +25,8 @@ var messageBuffer []QAMessage
 var bufferTicker *time.Ticker
 
 func InitRabbitMQConsumer() {
-    reabbitmq := helper.GetEnvOrDefault("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
-    conn, err := amqp.Dial(reabbitmq)
+    rabbitmqURL := helper.GetEnvOrDefault("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+    conn, err := amqp.Dial(rabbitmqURL)
     if err != nil {
         log.Fatalf("Failed to connect to RabbitMQ: %v", err)
     }
@@ -38,7 +39,7 @@ func InitRabbitMQConsumer() {
     defer ch.Close()
 
     q, err := ch.QueueDeclare(
-        "pdf_caht", 
+        "pdf_chat", 
         true,       // durable
         false,      // delete when unused
         false,      // exclusive
@@ -104,40 +105,50 @@ func bulkInsertToDB(messages []QAMessage) error {
         return nil
     }
 
-    return database.DB.Transaction(func(tx *gorm.DB) error {
-        var qaHistories []models.QAHistory
-        
-        for _, msg := range messages {
-            var chat models.Chat
-            if err := tx.Where("doc_id = ?", msg.DocID).First(&chat).Error; err != nil {
-                log.Printf("Chat not found for doc_id %s: %v", msg.DocID, err)
-                continue
-            }
-
-            timestamp, err := time.Parse(time.RFC3339, msg.Timestamp)
-            if err != nil {
-                log.Printf("Error parsing timestamp %s: %v", msg.Timestamp, err)
-                timestamp = time.Now()
-            }
-
-            qaHistory := models.QAHistory{
-                ID:        msg.ID,      
-                ChatID:    chat.ID,
-                Question:  msg.Question,
-                Answer:    msg.Answer,
-                Timestamp: timestamp,   
-            }
-            
-            qaHistories = append(qaHistories, qaHistory)
+    ctx := context.Background()
+    
+    // Use a transaction
+    tx, err := database.DBPool.Begin(ctx)
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback(ctx)
+    
+    qtx := repo.New(tx)
+    
+    for _, msg := range messages {
+        // Get chat by doc_id
+        chat, err := qtx.GetChatByDocID(ctx, msg.DocID)
+        if err != nil {
+            log.Printf("Chat not found for doc_id %s: %v", msg.DocID, err)
+            continue
         }
         
-        if len(qaHistories) > 0 {
-            if err := tx.CreateInBatches(qaHistories, 100).Error; err != nil {
-                log.Printf("Error batch creating QA histories: %v", err)
-                return err
-            }
+        // Parse timestamp
+        timestamp, err := time.Parse(time.RFC3339, msg.Timestamp)
+        if err != nil {
+            log.Printf("Error parsing timestamp %s: %v", msg.Timestamp, err)
+            timestamp = time.Now()
         }
         
-        return nil
-    })
+        // Create QA history
+        _, err = qtx.CreateQAHistory(ctx, repo.CreateQAHistoryParams{
+            ChatID:    chat.ID,
+            Question:  msg.Question,
+            Answer:    msg.Answer,
+            Timestamp: pgtype.Timestamptz{Time: timestamp, Valid: true},
+        })
+        
+        if err != nil {
+            log.Printf("Error creating QA history: %v", err)
+            return err
+        }
+    }
+    
+    // Commit transaction
+    if err := tx.Commit(ctx); err != nil {
+        return err
+    }
+    
+    return nil
 }

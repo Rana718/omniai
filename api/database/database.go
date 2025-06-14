@@ -1,44 +1,52 @@
 package database
 
 import (
-    "log"
-    "os"
-    "time"
+	"context"
+	"log"
+	"os"
+	"time"
+	"apiserver/database/repo"
 
-    "gorm.io/driver/postgres"
-    "gorm.io/gorm"
-    "gorm.io/gorm/logger"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var DB *gorm.DB
-
+var DBStore *repo.Queries
+var DBPool *pgxpool.Pool
 
 func ConnectDatabase() {
-    dbURL := os.Getenv("DATABASE_URL")
-    if dbURL == "" {
-        log.Fatal("DATABASE_URL environment variable is not set")
-    }
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		log.Fatal("DATABASE_URL environment variable is not set")
+	}
 
-    config := &gorm.Config{
-        Logger: logger.Default.LogMode(logger.Warn), 
-        PrepareStmt: false, 
-        DisableForeignKeyConstraintWhenMigrating: false,
-    }
+	config, err := pgxpool.ParseConfig(dbURL)
+	if err != nil {
+		log.Fatal("Failed to parse database URL:", err)
+	}
 
-    var err error
-    DB, err = gorm.Open(postgres.Open(dbURL), config)
-    if err != nil {
-        log.Fatal("Failed to connect to database:", err)
-    }
+	config.MaxConns = 100
+	config.MinConns = 5
+	config.MaxConnLifetime = time.Hour
+	config.MaxConnIdleTime = 30 * time.Minute
 
-    sqlDB, err := DB.DB()
-    if err != nil {
-        log.Fatal("Failed to get underlying SQL DB:", err)
-    }
+	ctx := context.Background()
+	DBPool, err = pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		log.Fatal("Failed to create connection pool:", err)
+	}
 
-    sqlDB.SetMaxIdleConns(5)                
-    sqlDB.SetMaxOpenConns(100)               
-    sqlDB.SetConnMaxLifetime(time.Hour)      
+	if err := DBPool.Ping(ctx); err != nil {
+		log.Fatal("Failed to ping database:", err)
+	}
 
-    log.Println("Database connection established with optimized settings")
+	DBStore = repo.New(DBPool)
+
+	log.Println("Database connection established with optimized settings")
+}
+
+func CloseDatabase() {
+	if DBPool != nil {
+		DBPool.Close()
+		log.Println("Database connection closed")
+	}
 }

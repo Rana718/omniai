@@ -2,10 +2,12 @@ package controllers
 
 import (
 	"apiserver/database"
+	"apiserver/database/repo"
 	"apiserver/helper"
-	"apiserver/models"
+
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type RegisterInput struct {
@@ -25,25 +27,23 @@ func Register(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	var existingUser models.User
-	err := database.DB.Select("id").Where("email = ?", input.Email).First(&existingUser).Error
+	_, err := database.DBStore.GetUserByEmail(c.Context(), input.Email)
 	if err == nil {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "User with this email already exists"})
-	} else if err != gorm.ErrRecordNotFound {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database error occurred"})
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"detail": "User already exists"})
 	}
 
-	user := models.User{
-		Name:           input.Name,
-		Email:          input.Email,
-		HashedPassword: input.Password,
-	}
-
-	if err := user.HashPassword(); err != nil {
+	hashedPassword, err := helper.HashPassword(input.Password)
+	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to hash password"})
 	}
 
-	if err := database.DB.Create(&user).Error; err != nil {
+	user, err := database.DBStore.CreateUser(c.Context(), repo.CreateUserParams{
+		Name:           input.Name,
+		Email:          input.Email,
+		HashedPassword: hashedPassword,
+		Image:          pgtype.Text{Valid: false},
+	})
+	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create user"})
 	}
 
@@ -71,20 +71,19 @@ func Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	var User models.User
-	if err := database.DB.Where("email = ?", input.Email).First(&User).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
+	user, err := database.DBStore.GetUserByEmail(c.Context(), input.Email)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"detail": "User not found"})
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database error occurred"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"detail": "Database error"})
 	}
 
-
-	if err := User.CheckPassword(input.Password); err != nil {
+	if err := helper.CheckPassword(user.HashedPassword, input.Password); err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid email or password"})
 	}
 
-	token, err := helper.GenerateToken(User.Email)
+	token, err := helper.GenerateToken(user.Email)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to generate token"})
 	}
@@ -92,27 +91,33 @@ func Login(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message": "Login successful",
 		"user": fiber.Map{
-			"id":    User.ID,
-			"name":  User.Name,
-			"email": User.Email,
+			"id":    user.ID,
+			"name":  user.Name,
+			"email": user.Email,
 		},
 		"access_token": token,
 	})
 }
 
 func GetProfile(c *fiber.Ctx) error {
-	authUser, ok := c.Locals("user").(*models.User)
+	authUser, ok := c.Locals("user").(*repo.User)
 	if !ok || authUser == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "User not found in context"})
 	}
 
 	user, err := helper.GetUserFromCache(authUser.Email)
 	if err != nil || user == nil {
-		var dbUser models.User
-		if err := database.DB.Select("id", "name", "email", "image", "created_at", "updated_at").
-			Where("id = ?", authUser.ID).First(&dbUser).Error; err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch user profile"})
+		var dbUser repo.User
+		ctx := c.Context()
+		dbUser, err := database.DBStore.GetUserByEmail(ctx, authUser.Email)
+
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"detail": "User not found"})
+			}
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"detail": "Database error"})
 		}
+
 		user = &dbUser
 		helper.SetUserInCache(user.Email, user)
 	}

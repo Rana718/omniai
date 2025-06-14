@@ -20,6 +20,7 @@ import (
 	pb "apiserver/proto"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func init() {
@@ -43,6 +44,7 @@ func main() {
 
 		grpcSrv := grpc.NewServer()
 		pb.RegisterServiceServer(grpcSrv, &grpcServer{})
+		reflection.Register(grpcSrv)
 
 		log.Printf("gRPC server running on %s", grpcPort)
 		if err := grpcSrv.Serve(lis); err != nil {
@@ -76,7 +78,7 @@ func main() {
 
 	app.Get("/", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
-			"message": "PDF Chatter API inin",
+			"message": "PDF Chatter API",
 			"status":  "healthy",
 		})
 	})

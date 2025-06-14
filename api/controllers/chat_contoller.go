@@ -3,14 +3,16 @@ package controllers
 import (
 	"apiserver/config"
 	"apiserver/database"
-	"apiserver/models"
+	"apiserver/database/repo"
 	"encoding/json"
 	"fmt"
 	"sort"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type ChatResponse struct {
@@ -20,8 +22,21 @@ type ChatResponse struct {
 	UserID    string `json:"user_id"`
 }
 
+type HistoryItem struct {
+	ID        string `json:"id"`
+	Question  string `json:"question"`
+	Answer    string `json:"answer"`
+	Timestamp string `json:"timestamp"`
+}
+
+type HistoryResponse struct {
+	Question  string `json:"question"`
+	Answer    string `json:"answer"`
+	Timestamp string `json:"timestamp"`
+}
+
 func GetAllChats(c *fiber.Ctx) error {
-	user := c.Locals("user").(*models.User)
+	user := c.Locals("user").(*repo.User)
 	userID := user.ID
 
 	cacheKey := fmt.Sprintf("user_chats:%s", userID)
@@ -34,18 +49,13 @@ func GetAllChats(c *fiber.Ctx) error {
 		}
 	}
 
-	var chats []models.Chat
+	chats, err := database.DBStore.GetUserChats(c.Context(), userID)
 
-	result := database.DB.
-		Select("doc_id, doc_text, created_at, user_id").
-		Where("user_id = ?", userID).
-		Order("created_at DESC").
-		Find(&chats)
-
-	if result.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to fetch chats",
-		})
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"detail": "User not found"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"detail": "Database error"})
 	}
 
 	var response []ChatResponse
@@ -53,28 +63,38 @@ func GetAllChats(c *fiber.Ctx) error {
 		response = append(response, ChatResponse{
 			DocID:     chat.DocID,
 			DocText:   chat.DocText,
-			CreatedAt: chat.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			UserID:    chat.UserID,
+			CreatedAt: formatTimestamptz(chat.CreatedAt),
+			UserID:    chat.UserID.String(),
 		})
 	}
-	
+
 	responseJSON, _ := json.Marshal(response)
-    config.Client.Set(config.Ctx, cacheKey, responseJSON, 10*time.Minute)
+	config.Client.Set(config.Ctx, cacheKey, responseJSON, 10*time.Minute)
 
 	return c.JSON(response)
+}
+
+func formatTimestamptz(ts pgtype.Timestamptz) string {
+	if ts.Valid {
+		return ts.Time.Format("2006-01-02T15:04:05Z07:00")
+	}
+	return ""
 }
 
 func GetChatHistory(c *fiber.Ctx) error {
 	chatID := c.Params("id")
 
-	var chat models.Chat
-	err := database.DB.
-		Select("doc_text, id").
-		Where("doc_id = ?", chatID).
-		First(&chat).Error
-
+	// Parse string chatID to UUID
+	chatUUID, err := uuid.Parse(chatID)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid chat ID format",
+		})
+	}
+
+	chatInfo, err := database.DBStore.GetChatByID(c.Context(), chatUUID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"error": "Chat not found",
 			})
@@ -82,13 +102,6 @@ func GetChatHistory(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch chat",
 		})
-	}
-
-	type HistoryItem struct {
-		ID        string `json:"id"`
-		Question  string `json:"question"`
-		Answer    string `json:"answer"`
-		Timestamp string `json:"timestamp"`
 	}
 
 	var allHistory []HistoryItem
@@ -118,13 +131,7 @@ func GetChatHistory(c *fiber.Ctx) error {
 	}
 
 	// Get DB data and merge (avoiding duplicates)
-	var dbHistory []models.QAHistory
-	err = database.DB.
-		Select("id, question, answer, timestamp").
-		Where("chat_id = ?", chat.ID).
-		Order("timestamp ASC").
-		Find(&dbHistory).Error
-
+	dbHistory, err := database.DBStore.GetQAHistoriesByChatID(c.Context(), chatUUID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch history",
@@ -132,31 +139,31 @@ func GetChatHistory(c *fiber.Ctx) error {
 	}
 
 	for _, h := range dbHistory {
-		if !seenIDs[h.ID] {
+		if !seenIDs[h.ID.String()] {
 			allHistory = append(allHistory, HistoryItem{
-				ID:        h.ID,
+				ID:        h.ID.String(),
 				Question:  h.Question,
 				Answer:    h.Answer,
-				Timestamp: h.Timestamp.Format("2006-01-02T15:04:05Z07:00"),
+				Timestamp: formatTimestamptz(h.Timestamp),
 			})
-			seenIDs[h.ID] = true
+			seenIDs[h.ID.String()] = true
 		}
 	}
 
 	// Sort by timestamp
 	sort.Slice(allHistory, func(i, j int) bool {
-		timeI, _ := time.Parse(time.RFC3339, allHistory[i].Timestamp)
-		timeJ, _ := time.Parse(time.RFC3339, allHistory[j].Timestamp)
+		timeI, errI := time.Parse(time.RFC3339, allHistory[i].Timestamp)
+		timeJ, errJ := time.Parse(time.RFC3339, allHistory[j].Timestamp)
+
+		// Handle parsing errors
+		if errI != nil || errJ != nil {
+			return false
+		}
+
 		return timeI.Before(timeJ)
 	})
 
 	// Convert to response format
-	type HistoryResponse struct {
-		Question  string `json:"question"`
-		Answer    string `json:"answer"`
-		Timestamp string `json:"timestamp"`
-	}
-
 	var historyResponse []HistoryResponse
 	for _, item := range allHistory {
 		historyResponse = append(historyResponse, HistoryResponse{
@@ -167,7 +174,7 @@ func GetChatHistory(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"docsname": chat.DocText,
+		"docsname": chatInfo.DocText,
 		"history":  historyResponse,
 	})
 }
