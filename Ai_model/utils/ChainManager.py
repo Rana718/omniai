@@ -16,60 +16,90 @@ api_key_manager = APIKeyManager()
 class OptimizedChainManager:
     def __init__(self):
         self.chains = {}
+        self.models = {}  # Direct model storage for hybrid mode
         self.last_used = {}
         self.cleanup_task = None
         self.model_pool = {}
 
-    async def get_chain(self, doc_id: str):
+    async def get_chain(self, doc_id: str, context_only: bool = False):
         current_time = time.time()
-        if doc_id in self.chains and doc_id in self.last_used:
-            if current_time - self.last_used[doc_id] < CHAIN_TIMEOUT:
-                self.last_used[doc_id] = current_time
-                print(f"♻️ Reusing existing chain for doc_id: {doc_id}")
-                return self.chains[doc_id]
+        chain_key = f"{doc_id}_{context_only}"
+        
+        if chain_key in self.chains and chain_key in self.last_used:
+            if current_time - self.last_used[chain_key] < CHAIN_TIMEOUT:
+                self.last_used[chain_key] = current_time
+                print(f"♻️ Reusing existing chain for doc_id: {doc_id}, context_only: {context_only}")
+                return self.chains[chain_key]
             else:
-                await self._remove_chain(doc_id)
+                await self._remove_chain(chain_key)
 
-        chain = await self._create_optimized_chain(doc_id)
-        self.chains[doc_id] = chain
-        self.last_used[doc_id] = current_time
+        chain = await self._create_optimized_chain(doc_id, context_only)
+        self.chains[chain_key] = chain
+        self.last_used[chain_key] = current_time
 
         if self.cleanup_task is None or self.cleanup_task.done():
             self.cleanup_task = asyncio.create_task(self._cleanup_expired_chains())
 
         return chain
 
-    async def _create_optimized_chain(self, doc_id: str):
+    async def get_direct_model(self, doc_id: str):
+        """Get direct model for hybrid mode without chain constraints"""
+        current_time = time.time()
+        model_key = f"direct_{doc_id}"
+        
+        if model_key in self.models and model_key in self.last_used:
+            if current_time - self.last_used[model_key] < CHAIN_TIMEOUT:
+                self.last_used[model_key] = current_time
+                print(f"♻️ Reusing direct model for doc_id: {doc_id}")
+                return self.models[model_key]
+            else:
+                await self._remove_model(model_key)
+
+        model = await self._get_pooled_model()
+        self.models[model_key] = model
+        self.last_used[model_key] = current_time
+        
+        print(f"✅ Created direct model for doc_id: {doc_id}")
+        return model
+
+    async def _create_optimized_chain(self, doc_id: str, context_only: bool = False):
         try:
             embeddings = await get_cached_embeddings()
             model = await self._get_pooled_model()
             
-            # Enhanced prompt template for better context understanding
-            prompt_template = """You are Jack, a helpful AI assistant. Answer the user's question using the provided context and conversation history.
+            # Only create chains for context-only mode
+            if context_only:
+                prompt_template = """You are Jack, a helpful AI assistant. Answer ONLY based on the provided document context.
 
-            INSTRUCTIONS:
-            - Be direct and informative
-            - Use the context to provide accurate answers
-            - If information isn't in the context, say so clearly
-            - Maintain conversation continuity using the history
+                STRICT INSTRUCTIONS:
+                - Use ONLY the information from the provided context
+                - If the context doesn't contain information to answer the question, say "The provided documents do not contain information about this topic. Please ask about topics covered in your uploaded documents."
+                - Do NOT use external knowledge or make assumptions
+                - Be direct and factual
+                - Reference the document content directly
 
-            CONVERSATION HISTORY:
-            {history}
+                CONVERSATION HISTORY:
+                {history}
 
-            DOCUMENT CONTEXT:
-            {context}
+                DOCUMENT CONTEXT:
+                {context}
 
-            USER QUESTION: {question}
+                USER QUESTION: {question}
 
-            ANSWER:"""
-            
-            prompt = PromptTemplate(
-                template=prompt_template,
-                input_variables=["context", "question", "history"]
-            )
-            chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
-            print(f"✅ Created optimized chain for doc_id: {doc_id}")
-            return chain
+                ANSWER (based only on the provided context):"""
+                
+                prompt = PromptTemplate(
+                    template=prompt_template,
+                    input_variables=["context", "question", "history"]
+                )
+                chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
+                print(f"✅ Created context-only chain for doc_id: {doc_id}")
+                return chain
+            else:
+                # For hybrid mode, we'll use direct model calls instead of chains
+                print(f"✅ Hybrid mode will use direct model calls for doc_id: {doc_id}")
+                return None
+                
         except Exception as e:
             print(f"❌ Error creating chain for {doc_id}: {e}")
             raise
@@ -80,7 +110,7 @@ class OptimizedChainManager:
             try:
                 model = ChatGoogleGenerativeAI(
                     model="gemini-2.0-flash",
-                    temperature=0.1,
+                    temperature=0.3,
                     google_api_key=api_key,
                     max_tokens=512,
                 )
@@ -92,31 +122,42 @@ class OptimizedChainManager:
                 raise
         return self.model_pool[api_key]
 
-    async def _remove_chain(self, doc_id: str):
-        if doc_id in self.chains:
-            del self.chains[doc_id]
-        if doc_id in self.last_used:
-            del self.last_used[doc_id]
-        print(f"🗑️ Removed expired chain for doc_id: {doc_id}")
+    async def _remove_chain(self, chain_key: str):
+        if chain_key in self.chains:
+            del self.chains[chain_key]
+        if chain_key in self.last_used:
+            del self.last_used[chain_key]
+        print(f"🗑️ Removed expired chain: {chain_key}")
+
+    async def _remove_model(self, model_key: str):
+        if model_key in self.models:
+            del self.models[model_key]
+        if model_key in self.last_used:
+            del self.last_used[model_key]
+        print(f"🗑️ Removed expired model: {model_key}")
 
     async def _cleanup_expired_chains(self):
         while True:
             try:
                 await asyncio.sleep(60)
                 current_time = time.time()
-                expired_docs = []
+                expired_items = []
 
-                for doc_id, last_used_time in self.last_used.items():
+                # Check chains
+                for chain_key, last_used_time in self.last_used.items():
                     if current_time - last_used_time > CHAIN_TIMEOUT:
-                        expired_docs.append(doc_id)
+                        expired_items.append(chain_key)
 
-                for doc_id in expired_docs:
-                    await self._remove_chain(doc_id)
+                for item_key in expired_items:
+                    if item_key in self.chains:
+                        await self._remove_chain(item_key)
+                    elif item_key in self.models:
+                        await self._remove_model(item_key)
 
                 api_key_manager.reset_error_counts()
 
-                if not self.chains:
-                    print("🧹 No active chains, stopping cleanup task")
+                if not self.chains and not self.models:
+                    print("🧹 No active chains or models, stopping cleanup task")
                     break
 
             except asyncio.CancelledError:

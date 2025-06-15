@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
 from core.Pdf_Agent import process_files, answer_question
 from utils.id_gen import generate_doc_id
+from services.grpc_func import ServiceClient
 
 app = APIRouter()
 
@@ -70,7 +71,12 @@ async def upload_files(
         }
 
 @app.post("/ask")
-async def ask_question(request: Request, doc_id: str = Form(...), question: str = Form(...)):
+async def ask_question(
+    request: Request, 
+    doc_id: str = Form(None), 
+    question: str = Form(...),
+    context_only: str = Form("false")  # Changed to str
+):
     userid = request.state.user_id
     
     if not question.strip():
@@ -79,5 +85,28 @@ async def ask_question(request: Request, doc_id: str = Form(...), question: str 
             detail="Question cannot be empty"
         )
     
-    answer = await answer_question(userid, doc_id, question)
-    return {"answer": answer}
+    # Convert string to boolean
+    context_only_bool = context_only.lower() in ('true', '1', 'yes', 'on')
+    
+    # Create a new doc_id if not provided (normal chat)
+    is_normal_chat = False
+    if not doc_id:
+        is_normal_chat = True
+        doc_id = generate_doc_id()
+        try:
+            # Create a new chat via gRPC
+            client = ServiceClient()
+            response = await client.create_chat(doc_id, userid, doc_text="Normal Chat")
+            if not response:
+                print(f"⚠️ Failed to create normal chat via gRPC")
+        except Exception as e:
+            print(f"⚠️ Error creating normal chat: {e}")
+    
+    answer = await answer_question(
+        userid, 
+        doc_id, 
+        question, 
+        is_normal_chat=is_normal_chat,
+        context_only=context_only_bool  # Pass as boolean
+    )
+    return {"answer": answer, "doc_id": doc_id}

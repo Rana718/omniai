@@ -2,33 +2,19 @@ import pika
 import os
 import logging
 from contextlib import contextmanager
-from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
 
-def get_connection_parameters():
-    """Get RabbitMQ connection parameters from URL"""
-    parsed_url = urlparse(RABBITMQ_URL)
-
-    credentials = pika.PlainCredentials(parsed_url.username, parsed_url.password)
-    return pika.ConnectionParameters(
-        host=parsed_url.hostname,
-        port=parsed_url.port or 5672,
-        credentials=credentials,
-        virtual_host=parsed_url.path[1:] if parsed_url.path else "/",
-        heartbeat=600,
-        blocked_connection_timeout=300,
-    )
-
 @contextmanager
 def get_rabbitmq_channel():
-    """Context manager for RabbitMQ channel with automatic cleanup"""
+    """Context manager for RabbitMQ channel using URLParameters"""
     connection = None
     channel = None
     try:
-        connection = pika.BlockingConnection(get_connection_parameters())
+        parameters = pika.URLParameters(RABBITMQ_URL)
+        connection = pika.BlockingConnection(parameters)
         channel = connection.channel()
 
         # Declare queue
@@ -43,12 +29,12 @@ def get_rabbitmq_channel():
         if channel and not channel.is_closed:
             try:
                 channel.close()
-            except:
+            except Exception:
                 pass
         if connection and not connection.is_closed:
             try:
                 connection.close()
-            except:
+            except Exception:
                 pass
 
 class RabbitMQManager:
@@ -77,7 +63,7 @@ class RabbitMQManager:
                 logger.info(f"Retrying... ({retries + 1}/{self.max_retries})")
                 return self.publish_message(queue_name, message, retries + 1)
             else:
-                logger.error(f"Max retries reached. Message not published.")
+                logger.error("Max retries reached. Message not published.")
                 return False
 
 rabbitmq_manager = RabbitMQManager()

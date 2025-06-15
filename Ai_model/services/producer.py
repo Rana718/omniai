@@ -1,28 +1,42 @@
+import pika
 import json
 import logging
-from .rabbitmq import rabbitmq_manager
+from datetime import datetime
 
-logger = logging.getLogger(__name__)
-
-def produce_qa_history(doc_id, question, answer, hisid, timestamp):
-    """Producer function to send QA history data to RabbitMQ queue"""
+def produce_qa_history(doc_id, question, answer, qa_id, timestamp):
+    """Send QA history to RabbitMQ"""
     try:
+        # Connect to RabbitMQ
+        connection = pika.BlockingConnection(
+            pika.URLParameters('amqp://guest:guest@localhost:5672/')
+        )
+        channel = connection.channel()
+        
+        # Declare queue (should match consumer)
+        channel.queue_declare(queue='pdf_chat', durable=True)
+        
+        # Prepare message
         message = {
             "doc_id": doc_id,
             "question": question,
             "answer": answer,
-            "id": hisid,
+            "id": qa_id,
             "timestamp": timestamp
         }
         
-        message_json = json.dumps(message)
+        # Publish message
+        channel.basic_publish(
+            exchange='',
+            routing_key='pdf_chat',
+            body=json.dumps(message),
+            properties=pika.BasicProperties(
+                delivery_mode=2,  # Make message persistent
+            )
+        )
         
-        success = rabbitmq_manager.publish_message("pdf_caht", message_json)
+        connection.close()
+        print(f"✅ Sent QA message to RabbitMQ for doc_id: {doc_id}")
         
-        if success:
-            logger.info(f"QA history sent to queue for doc_id: {doc_id}")
-        else:
-            logger.error(f"Failed to send QA history for doc_id: {doc_id}")
-            
     except Exception as e:
-        logger.error(f"Error in produce_qa_history: {e}")
+        print(f"❌ Error sending to RabbitMQ: {e}")
+        logging.error(f"RabbitMQ producer error: {e}")

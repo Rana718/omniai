@@ -383,10 +383,18 @@ async def optimized_content_search(question, vector_store, top_k=4):
             print(f"❌ Alternative search also failed: {e2}")
             return []
 
-async def answer_question(user_id, doc_id, question):
-    """Answer question using Pinecone vector store"""
+async def answer_question(user_id, doc_id, question, is_normal_chat=False, context_only=False):
+    """Answer question using unified approach with direct model calls for hybrid mode
     
-    print(f"🤖 Processing question: '{question}' for doc_id: {doc_id}")
+    Args:
+        user_id: The user ID
+        doc_id: The document ID
+        question: The user's question
+        is_normal_chat: Whether this is a normal chat without document context
+        context_only: If True, only use embedded data; if False, use Gemini directly
+    """
+    
+    print(f"🤖 Processing question: '{question}' for doc_id: {doc_id}, normal_chat: {is_normal_chat}, context_only: {context_only}")
     cached = await get_cached_response(doc_id, question)
     if cached:
         return cached
@@ -396,49 +404,104 @@ async def answer_question(user_id, doc_id, question):
         answer = "My name is Jack. I'm an AI assistant designed to help you understand and analyze your documents."
         await cache_response(doc_id, question, answer)
         await learn_user_patterns(user_id, question, "identity")
+        await append_history(doc_id, question, answer)
         return answer
     
     try:
-        vector_store = await get_cached_vector_store(doc_id)
-        context = await optimized_content_search(question, vector_store, top_k=4)
-        
-        if not context:
-            try:
-                sample_docs = vector_store.similarity_search("", k=1)  
-                if sample_docs:
-                    print(f"📝 Sample content available: {sample_docs[0].page_content[:100]}...")
-                else:
-                    print("❌ No documents found in vector store")
-            except Exception as e:
-                print(f"❌ Error getting sample content: {e}")
+        # For normal chat (without document context)
+        if is_normal_chat:
+            if context_only:
+                answer = "I can't provide a context-only answer for a normal chat as there's no document context available. Please upload a document first or ask questions about your documents."
+                await cache_response(doc_id, question, answer)
+                await append_history(doc_id, question, answer)
+                return answer
+                
+            print(f"💬 Processing as normal chat for doc_id: {doc_id}")
+            # Use direct model call for normal chat - clean prompt without history
+            model = await chain_manager.get_direct_model(doc_id)
             
-            fallback = "I couldn't find relevant information in the document to answer your question. Could you try rephrasing it or asking about specific topics from your document?"
-            await cache_response(doc_id, question, fallback)
-            return fallback
+            prompt = f"""You are Jack, a helpful AI assistant. Answer the user's question directly and conversationally.
+
+User Question: {question}
+
+Answer:"""
+            
+            response = await model.ainvoke(prompt)
+            answer = response.content.strip()
+            
+            if not answer or len(answer) < 10:
+                answer = "I'm not sure I understand your question. Could you please provide more details?"
+            
+            await cache_response(doc_id, question, answer)
+            await learn_user_patterns(user_id, question, answer)
+            await append_history(doc_id, question, answer)
+            
+            return answer
         
-        print(f"📚 Using {len(context)} context pieces for answer generation")
+        # For document-based chat
+        if context_only:
+            print("📄 Using context-only mode - searching embedded data only")
+            vector_store = await get_cached_vector_store(doc_id)
+            context = await optimized_content_search(question, vector_store, top_k=4)
+            
+            # Get conversation history for context-only mode
+            history = load_history(doc_id)[-3:]
+            history_str = "\n".join([f"Q: {h['question']}\nA: {h['answer']}" for h in history])
+            
+            # Get context-only chain
+            chain = await chain_manager.get_chain(doc_id, context_only=True)
+            
+            if not context:
+                docs = []
+            else:
+                docs = [Document(page_content=c) for c in context]
+            
+            response = chain({
+                "input_documents": docs, 
+                "question": question, 
+                "history": history_str
+            }, return_only_outputs=True)
+            
+            answer = response["output_text"].strip()
+            
+            if not answer or len(answer) < 10:
+                answer = "The provided documents do not contain sufficient information to answer your question. Please try asking about topics that are specifically covered in your documents."
+            
+            await cache_response(doc_id, question, answer)
+            await learn_user_patterns(user_id, question, "context_only")
+            await append_history(doc_id, question, answer)
+            return answer
         
-        history = load_history(doc_id)[-3:]
-        history_str = "\n".join([f"Q: {h['question']}\nA: {h['answer']}" for h in history])
-        docs = [Document(page_content=c) for c in context]
-        chain = await chain_manager.get_chain(doc_id)
-        
-        response = chain({
-            "input_documents": docs, 
-            "question": question, 
-            "history": history_str
-        }, return_only_outputs=True)
-        
-        answer = response["output_text"].strip()
-        
-        if not answer or len(answer) < 10:
-            answer = "I found relevant information but couldn't generate a comprehensive answer. Could you try asking more specifically?"
-        
-        await cache_response(doc_id, question, answer)
-        await learn_user_patterns(user_id, question, answer)
-        await append_history(doc_id, question, answer)
-        
-        return answer
+        else:
+            print("🔄 Using hybrid mode - Pure Gemini response without document interference")
+            
+            # Get direct model for hybrid mode
+            model = await chain_manager.get_direct_model(doc_id)
+            
+            # Create clean prompt for pure Gemini response without context or history interference
+            prompt = f"""You are Jack, a helpful AI assistant. Answer the user's question directly using your knowledge.
+
+Instructions:
+- Provide a clear, direct answer to the question
+- Use your general knowledge to give the best response
+- Be conversational and helpful
+- Don't reference any documents or previous conversations
+
+User Question: {question}
+
+Answer:"""
+            
+            response = await model.ainvoke(prompt)
+            answer = response.content.strip()
+            
+            if not answer or len(answer) < 10:
+                answer = "I'm having trouble generating a response. Could you please try rephrasing your question?"
+            
+            await cache_response(doc_id, question, answer)
+            await learn_user_patterns(user_id, question, answer)
+            await append_history(doc_id, question, answer)
+            
+            return answer
         
     except Exception as e:
         print(f"❌ Error in answer_question: {e}")

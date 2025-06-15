@@ -46,7 +46,7 @@ app.add_middleware(
 
 app.add_middleware(JWTAuthMiddleware)
 
-app.include_router(pdf_routes.app, prefix="/pdfchat", tags=["pdfchat"])
+app.include_router(pdf_routes.app, prefix="/chat", tags=["chat"])
 
 @app.get("/")
 async def root():
