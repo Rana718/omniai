@@ -8,7 +8,6 @@ from utils.redis_config import get_redis
 from utils.pinecone import get_pinecone_index
 from functools import lru_cache
 from .api_key import APIKeyManager
-import os
 
 CHAIN_TIMEOUT = 300
 api_key_manager = APIKeyManager()
@@ -16,7 +15,7 @@ api_key_manager = APIKeyManager()
 class OptimizedChainManager:
     def __init__(self):
         self.chains = {}
-        self.models = {}  # Direct model storage for hybrid mode
+        self.models = {} 
         self.last_used = {}
         self.cleanup_task = None
         self.model_pool = {}
@@ -64,10 +63,8 @@ class OptimizedChainManager:
 
     async def _create_optimized_chain(self, doc_id: str, context_only: bool = False):
         try:
-            embeddings = await get_cached_embeddings()
             model = await self._get_pooled_model()
             
-            # Only create chains for context-only mode
             if context_only:
                 prompt_template = """You are Jack, a helpful AI assistant. Answer ONLY based on the provided document context.
 
@@ -96,7 +93,6 @@ class OptimizedChainManager:
                 print(f"✅ Created context-only chain for doc_id: {doc_id}")
                 return chain
             else:
-                # For hybrid mode, we'll use direct model calls instead of chains
                 print(f"✅ Hybrid mode will use direct model calls for doc_id: {doc_id}")
                 return None
                 
@@ -199,11 +195,7 @@ async def get_pinecone_vector_store(doc_id: str, embeddings):
     """Get or create Pinecone vector store for document"""
     try:
         index = get_pinecone_index()
-        
-        # Create namespace for the document
         namespace = f"doc_{doc_id}"
-        
-        # Create PineconeVectorStore
         vector_store = PineconeVectorStore(
             index=index,
             embedding=embeddings,

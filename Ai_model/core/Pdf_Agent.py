@@ -16,9 +16,10 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from utils.file_utils import save_files, append_history, load_history
 from utils.ChainManager import OptimizedChainManager, get_cached_embeddings, get_pinecone_vector_store
 import uuid
+import hashlib
 from services.grpc_func import ServiceClient
 
-clinet = ServiceClient()
+client = ServiceClient()  
 chain_manager = OptimizedChainManager()
 user_patterns_cache = {}
 
@@ -153,10 +154,10 @@ async def process_files(user_id, doc_id, files, name):
     
     # Try to get or create chat (with error handling)
     try:
-        chat = await clinet.get_chat(doc_id)
+        chat = await client.get_chat(doc_id)  # Fixed typo: clinet -> client
         if not chat:
             try:
-                response = await clinet.create_chat(doc_id, user_id, doc_text=name)
+                response = await client.create_chat(doc_id, user_id, doc_text=name)
                 if not response:
                     print(f"⚠️ Failed to create chat via gRPC, proceeding without chat creation")
                 else:
@@ -240,7 +241,7 @@ async def process_files(user_id, doc_id, files, name):
                     "doc_id": doc_id,
                     "chunk_id": i,
                     "user_id": user_id,
-                    "doc_name": name,
+                    "doc_name": name or "Unnamed Document",
                     "timestamp": time.time(),
                     "file_types": [f.filename.split('.')[-1].lower() for f in files],
                     "total_words": word_count
@@ -275,13 +276,12 @@ async def process_files(user_id, doc_id, files, name):
             "error": f"Failed to process files: {str(e)}"
         }
 
-# Keep all other functions the same (answer_question, etc.)
 async def get_cached_vector_store(doc_id):
     """Get vector store from Pinecone with Redis caching"""
-    redis_client = get_redis()
     cache_key = f"pinecone_store:{doc_id}"
     
     try:
+        redis_client = get_redis()
         cached = await redis_client.get(cache_key)
         if cached:
             print(f"✅ Vector store metadata found in Redis for doc_id: {doc_id}")
@@ -293,10 +293,11 @@ async def get_cached_vector_store(doc_id):
         vector_store = await get_pinecone_vector_store(doc_id, embeddings)
         
         try:
+            redis_client = get_redis()
             await redis_client.setex(cache_key, 3600, "exists")
             print(f"✅ Cached vector store metadata for {doc_id}")
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"⚠️ Failed to cache vector store metadata: {e}")
         
         return vector_store
         
@@ -307,55 +308,85 @@ async def get_cached_vector_store(doc_id):
 async def get_cached_document_content(doc_id):
     """Get cached document content from Redis"""
     try:
-        content = await get_redis().get(f"document_content:{doc_id}")
+        redis_client = get_redis()
+        content = await redis_client.get(f"document_content:{doc_id}")
         if content:
             print(f"✅ Retrieved document content for {doc_id} from Redis")
         return content
-    except Exception:
+    except Exception as e:
+        print(f"⚠️ Failed to get cached document content: {e}")
         return None
 
 async def cache_document_content(doc_id, content):
     """Cache document content in Redis"""
     try:
-        await get_redis().setex(f"document_content:{doc_id}", 7200, content)
+        redis_client = get_redis()
+        await redis_client.setex(f"document_content:{doc_id}", 7200, content)
         print(f"✅ Cached document content for {doc_id}")
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"⚠️ Failed to cache document content: {e}")
 
-async def get_cached_response(doc_id, question):
-    """Get cached response for frequently asked questions"""
+def _generate_cache_key(doc_id, question, context_only=False):
+    """Generate consistent cache key using SHA-256 hash"""
+    # Normalize the question for consistent hashing
+    normalized_question = question.lower().strip()
+    # Create a string to hash
+    cache_string = f"{doc_id}:{context_only}:{normalized_question}"
+    # Use SHA-256 for consistent hashing
+    question_hash = hashlib.sha256(cache_string.encode('utf-8')).hexdigest()[:16]
+    return f"response:{doc_id}:{context_only}:{question_hash}"
+
+async def get_cached_response(doc_id, question, context_only=False):
+    """Get cached response for frequently asked questions with context_only awareness"""
     try:
-        response = await get_redis().get(f"response:{doc_id}:{hash(question.lower().strip())}")
+        redis_client = get_redis()
+        cache_key = _generate_cache_key(doc_id, question, context_only)
+        response = await redis_client.get(cache_key)
         if response:
-            print("✅ Retrieved cached response")
-        return response
-    except Exception:
+            print(f"✅ Retrieved cached response (context_only={context_only})")
+            return response
+        return None
+    except Exception as e:
+        print(f"⚠️ Failed to get cached response: {e}")
         return None
 
-async def cache_response(doc_id, question, answer):
-    """Cache response for future use"""
+async def cache_response(doc_id, question, answer, context_only=False):
+    """Cache response for future use with context_only awareness"""
     try:
-        await get_redis().setex(f"response:{doc_id}:{hash(question.lower().strip())}", 3600, answer)
-        print("✅ Cached response for future use")
-    except Exception:
-        pass
+        redis_client = get_redis()
+        cache_key = _generate_cache_key(doc_id, question, context_only)
+        await redis_client.setex(cache_key, 3600, answer)
+        print(f"✅ Cached response for future use (context_only={context_only})")
+    except Exception as e:
+        print(f"⚠️ Failed to cache response: {e}")
+
 
 async def learn_user_patterns(user_id, question, _):
     """Learn user patterns for better responses"""
-    data = user_patterns_cache.setdefault(user_id, {
-        'typo_patterns': {}, 'question_styles': [], 'preferred_length': 'medium', 'common_words': Counter()
-    })
-    if len(data['question_styles']) >= 10:
-        data['question_styles'].pop(0)
-    data['question_styles'].append(question.lower())
-    data['common_words'].update(re.findall(r'\b\w+\b', question.lower()))
-    if len(data['common_words']) > 50:
-        data['common_words'] = Counter(dict(data['common_words'].most_common(50)))
-    q = question.lower()
-    if any(w in q for w in ['brief', 'short', 'quickly']):
-        data['preferred_length'] = 'short'
-    elif any(w in q for w in ['detail', 'explain', 'comprehensive']):
-        data['preferred_length'] = 'long'
+    try:
+        data = user_patterns_cache.setdefault(user_id, {
+            'typo_patterns': {}, 
+            'question_styles': [], 
+            'preferred_length': 'medium', 
+            'common_words': Counter()
+        })
+        
+        if len(data['question_styles']) >= 10:
+            data['question_styles'].pop(0)
+        data['question_styles'].append(question.lower())
+        data['common_words'].update(re.findall(r'\b\w+\b', question.lower()))
+        
+        if len(data['common_words']) > 50:
+            data['common_words'] = Counter(dict(data['common_words'].most_common(50)))
+        
+        q = question.lower()
+        if any(w in q for w in ['brief', 'short', 'quickly']):
+            data['preferred_length'] = 'short'
+        elif any(w in q for w in ['detail', 'explain', 'comprehensive']):
+            data['preferred_length'] = 'long'
+            
+    except Exception as e:
+        print(f"⚠️ Error learning user patterns: {e}")
 
 async def optimized_content_search(question, vector_store, top_k=4):
     """Optimized content search using Pinecone"""
@@ -395,14 +426,15 @@ async def answer_question(user_id, doc_id, question, is_normal_chat=False, conte
     """
     
     print(f"🤖 Processing question: '{question}' for doc_id: {doc_id}, normal_chat: {is_normal_chat}, context_only: {context_only}")
-    cached = await get_cached_response(doc_id, question)
+    
+    cached = await get_cached_response(doc_id, question, context_only)
     if cached:
         return cached
     
     identity_keywords = ["model name", "what model", "your name", "who are you", "what are you", "ur name", "wat r u"]
     if any(k in question.lower() for k in identity_keywords):
         answer = "My name is Jack. I'm an AI assistant designed to help you understand and analyze your documents."
-        await cache_response(doc_id, question, answer)
+        await cache_response(doc_id, question, answer, context_only)
         await learn_user_patterns(user_id, question, "identity")
         await append_history(doc_id, question, answer)
         return answer
@@ -412,7 +444,7 @@ async def answer_question(user_id, doc_id, question, is_normal_chat=False, conte
         if is_normal_chat:
             if context_only:
                 answer = "I can't provide a context-only answer for a normal chat as there's no document context available. Please upload a document first or ask questions about your documents."
-                await cache_response(doc_id, question, answer)
+                await cache_response(doc_id, question, answer, context_only)
                 await append_history(doc_id, question, answer)
                 return answer
                 
@@ -432,7 +464,7 @@ Answer:"""
             if not answer or len(answer) < 10:
                 answer = "I'm not sure I understand your question. Could you please provide more details?"
             
-            await cache_response(doc_id, question, answer)
+            await cache_response(doc_id, question, answer, context_only)
             await learn_user_patterns(user_id, question, answer)
             await append_history(doc_id, question, answer)
             
@@ -467,7 +499,7 @@ Answer:"""
             if not answer or len(answer) < 10:
                 answer = "The provided documents do not contain sufficient information to answer your question. Please try asking about topics that are specifically covered in your documents."
             
-            await cache_response(doc_id, question, answer)
+            await cache_response(doc_id, question, answer, context_only)
             await learn_user_patterns(user_id, question, "context_only")
             await append_history(doc_id, question, answer)
             return answer
@@ -497,7 +529,7 @@ Answer:"""
             if not answer or len(answer) < 10:
                 answer = "I'm having trouble generating a response. Could you please try rephrasing your question?"
             
-            await cache_response(doc_id, question, answer)
+            await cache_response(doc_id, question, answer, context_only)
             await learn_user_patterns(user_id, question, answer)
             await append_history(doc_id, question, answer)
             

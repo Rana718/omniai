@@ -33,10 +33,8 @@ async def append_history(doc_id, question, answer):
     timestamp = datetime.now().isoformat()
     await store_in_redis_cache(doc_id, question, answer, hisid, timestamp)
     
-    # Send to RabbitMQ for database persistence
     produce_qa_history(doc_id, question, answer, hisid, timestamp)
     
-    # Also store in JSON file as backup
     store_in_json_file(doc_id, question, answer)
 
 def store_in_json_file(doc_id, question, answer):
