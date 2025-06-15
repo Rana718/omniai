@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
-from core.Pdf_Agent import process_files, answer_question
+from core import process_files, answer_question
 from utils.id_gen import generate_doc_id
 from services.grpc_func import ServiceClient
 
