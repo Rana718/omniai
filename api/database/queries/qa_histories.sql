@@ -1,11 +1,12 @@
 -- name: CreateQAHistory :one
 INSERT INTO qa_histories (
+    id,
     chat_id,
     question,
     answer,
     timestamp
 ) VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4, $5
 ) RETURNING *;
 
 -- name: GetQAHistoriesByChatID :many

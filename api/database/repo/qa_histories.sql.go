@@ -14,16 +14,18 @@ import (
 
 const createQAHistory = `-- name: CreateQAHistory :one
 INSERT INTO qa_histories (
+    id,
     chat_id,
     question,
     answer,
     timestamp
 ) VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4, $5
 ) RETURNING id, chat_id, question, answer, timestamp
 `
 
 type CreateQAHistoryParams struct {
+	ID        uuid.UUID          `json:"id"`
 	ChatID    uuid.UUID          `json:"chat_id"`
 	Question  string             `json:"question"`
 	Answer    string             `json:"answer"`
@@ -32,6 +34,7 @@ type CreateQAHistoryParams struct {
 
 func (q *Queries) CreateQAHistory(ctx context.Context, arg CreateQAHistoryParams) (QaHistory, error) {
 	row := q.db.QueryRow(ctx, createQAHistory,
+		arg.ID,
 		arg.ChatID,
 		arg.Question,
 		arg.Answer,

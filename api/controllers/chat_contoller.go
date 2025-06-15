@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -82,17 +81,9 @@ func formatTimestamptz(ts pgtype.Timestamptz) string {
 }
 
 func GetChatHistory(c *fiber.Ctx) error {
-	chatID := c.Params("id")
+	DocID := c.Params("id")
 
-	// Parse string chatID to UUID
-	chatUUID, err := uuid.Parse(chatID)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid chat ID format",
-		})
-	}
-
-	chatInfo, err := database.DBStore.GetChatByID(c.Context(), chatUUID)
+	chatInfo, err := database.DBStore.GetChatByDocID(c.Context(), DocID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -107,7 +98,7 @@ func GetChatHistory(c *fiber.Ctx) error {
 	var allHistory []HistoryItem
 	seenIDs := make(map[string]bool)
 
-	redisKey := "chat_history_temp:" + chatID
+	redisKey := "chat_history_temp:" + DocID
 	redisData, err := config.Client.LRange(config.Ctx, redisKey, 0, -1).Result()
 
 	if err == nil && len(redisData) > 0 {
@@ -131,7 +122,7 @@ func GetChatHistory(c *fiber.Ctx) error {
 	}
 
 	// Get DB data and merge (avoiding duplicates)
-	dbHistory, err := database.DBStore.GetQAHistoriesByChatID(c.Context(), chatUUID)
+	dbHistory, err := database.DBStore.GetQAHistoriesByChatID(c.Context(), chatInfo.ID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch history",
