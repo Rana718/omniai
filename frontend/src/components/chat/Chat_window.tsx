@@ -11,6 +11,8 @@ interface Chat_WindowProps {
     isChatLoading: boolean;
     setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
     selectedChatId: string | null;
+    onNewChatCreated?: (chatId: string) => void;
+    onMessageSuccess?: (response: any) => void;
 }
 
 function Chat_window({
@@ -18,6 +20,8 @@ function Chat_window({
     isChatLoading,
     setMessages,
     selectedChatId,
+    onNewChatCreated,
+    onMessageSuccess,
 }: Chat_WindowProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,7 +55,6 @@ function Chat_window({
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const files = Array.from(e.target.files);
-            // Support multiple file types
             const supportedTypes = [
                 'application/pdf',
                 'text/plain',
@@ -107,7 +110,6 @@ function Chat_window({
 
         setIsUploading(true);
 
-        // Create user message showing files being uploaded
         const fileNames = selectedFiles.map(f => f.name).join(', ');
         const userMessage: Message = {
             id: `user-${Date.now()}`,
@@ -123,17 +125,14 @@ function Chat_window({
         try {
             const formData = new FormData();
             
-            // If no selectedChatId, this will create a new chat
             if (selectedChatId) {
                 formData.append("doc_id", selectedChatId);
             }
 
-            // Add files
             currentFiles.forEach((file) => {
                 formData.append("files", file);
             });
 
-            // Set doc_name from file names if no selectedChatId
             if (!selectedChatId) {
                 const docName = currentFiles.length === 1 
                     ? currentFiles[0].name.replace(/\.[^/.]+$/, "")
@@ -154,9 +153,14 @@ function Chat_window({
                 timestamp: new Date(),
             };
 
-            setIsUploading(false);
-            scrollToBottom();
             setMessages(prev => [...prev, botMessage]);
+
+            if (response.data.doc_id && response.data.doc_id !== selectedChatId) {
+                onNewChatCreated?.(response.data.doc_id);
+            }
+
+            onMessageSuccess?.(response.data);
+
         } catch (error) {
             console.error("Error uploading files:", error);
             const errorMessage: Message = {
@@ -165,9 +169,10 @@ function Chat_window({
                 content: "Sorry, I encountered an error while uploading your files. Please try again.",
                 timestamp: new Date(),
             };
+            setMessages(prev => [...prev, errorMessage]);
+        } finally {
             setIsUploading(false);
             scrollToBottom();
-            setMessages(prev => [...prev, errorMessage]);
         }
     };
 
@@ -220,9 +225,14 @@ function Chat_window({
                 timestamp: new Date(),
             };
 
-            setIsThinking(false);
-            scrollToBottom();
             setMessages(prev => [...prev, botMessage]);
+
+            if (response.data.doc_id && response.data.doc_id !== selectedChatId) {
+                onNewChatCreated?.(response.data.doc_id);
+            }
+
+            onMessageSuccess?.(response.data);
+
         } catch (error) {
             console.error("Error sending message:", error);
             const errorMessage: Message = {
@@ -231,9 +241,10 @@ function Chat_window({
                 content: "Sorry, I encountered an error while processing your request. Please try again.",
                 timestamp: new Date(),
             };
+            setMessages(prev => [...prev, errorMessage]);
+        } finally {
             setIsThinking(false);
             scrollToBottom();
-            setMessages(prev => [...prev, errorMessage]);
         }
     };
 
@@ -253,7 +264,6 @@ function Chat_window({
                     {/* Messages Container */}
                     <div className="flex-1 overflow-y-auto">
                         <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-6">
-                            {/* Welcome message for new chats */}
                             {messages.length === 0 && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 20 }}
@@ -316,7 +326,6 @@ function Chat_window({
 
                     {/* Bottom Input Section */}
                     <div className="">
-                        {/* File Upload Preview */}
                         {selectedFiles.length > 0 && (
                             <div className="w-full max-w-3xl mx-auto px-4 pt-4">
                                 <motion.div 
@@ -348,11 +357,9 @@ function Chat_window({
                             </div>
                         )}
 
-                        {/* Input Area */}
                         <div className="w-full max-w-3xl mx-auto px-4 pb-6">
                             <div className="relative bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm">
                                 <div className="flex items-end p-3">
-                                    {/* Dropdown Menu Button */}
                                     <div className="relative">
                                         <button
                                             onClick={() => setShowDropdown(!showDropdown)}
@@ -371,7 +378,6 @@ function Chat_window({
                                                 exit={{ opacity: 0, y: 10 }}
                                                 className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 z-50"
                                             >
-                                                {/* File Upload Option */}
                                                 <button
                                                     onClick={() => fileInputRef.current?.click()}
                                                     className="w-full flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
@@ -387,7 +393,6 @@ function Chat_window({
                                                     </div>
                                                 </button>
 
-                                                {/* Context Only Toggle */}
                                                 <div className="mt-2 p-2 border-t border-gray-200 dark:border-gray-700">
                                                     <div className="flex items-center justify-between">
                                                         <div>
@@ -416,7 +421,6 @@ function Chat_window({
                                         )}
                                     </div>
 
-                                    {/* Text Input */}
                                     <div className="flex-1 min-w-0 mx-2">
                                         <textarea
                                             ref={textareaRef}
@@ -435,7 +439,6 @@ function Chat_window({
                                         />
                                     </div>
 
-                                    {/* Send Button */}
                                     <motion.button
                                         whileHover={canSend && !isThinking && !isUploading ? { scale: 1.05 } : {}}
                                         whileTap={canSend && !isThinking && !isUploading ? { scale: 0.95 } : {}}
@@ -459,7 +462,6 @@ function Chat_window({
                                 </div>
                             </div>
 
-                            {/* Hidden file input */}
                             <input
                                 ref={fileInputRef}
                                 type="file"
@@ -469,7 +471,6 @@ function Chat_window({
                                 className="hidden"
                             />
 
-                            {/* Context only indicator */}
                             {contextOnly && (
                                 <div className="mt-2 text-xs text-blue-500 dark:text-blue-400 text-center">
                                     Context Only mode: Searching only in uploaded documents
@@ -477,7 +478,6 @@ function Chat_window({
                             )}
                         </div>
 
-                        {/* Click outside to close dropdown */}
                         {showDropdown && (
                             <div 
                                 className="fixed inset-0 z-40" 

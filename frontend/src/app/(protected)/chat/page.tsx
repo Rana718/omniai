@@ -27,13 +27,24 @@ export default function DocsPage() {
     const fetchingRef = useRef(false);
     const initializedRef = useRef(false);
 
-    const fetchPreviousChats = useCallback(async () => {
+    const updateURL = useCallback((docId: string | null, replace: boolean = true) => {
+        const url = docId ? `${pathname}?id=${docId}` : pathname;
+        if (replace) {
+            router.replace(url, { scroll: false });
+        } else {
+            router.push(url, { scroll: false });
+        }
+    }, [pathname, router]);
+
+    const fetchPreviousChats = useCallback(async (silent: boolean = false) => {
         if (fetchingRef.current || status !== "authenticated" || !session?.user?.accessToken) {
-            return;
+            return [];
         }
 
         fetchingRef.current = true;
-        setIsLoadingChats(true);
+        if (!silent) {
+            setIsLoadingChats(true);
+        }
 
         try {
             const response = await axiosInstance.get("/api/pdfchat");
@@ -68,18 +79,21 @@ export default function DocsPage() {
             setPreviousChats(sortedChats);
             setIsInitialLoadComplete(true);
             initializedRef.current = true;
+            
+            return sortedChats;
         } catch (error) {
             console.error("Error fetching previous chats:", error);
-            
             setPreviousChats([]);
             setIsInitialLoadComplete(true);
             initializedRef.current = true;
+            return [];
         } finally {
             setIsLoadingChats(false);
             fetchingRef.current = false;
         }
     }, [session?.user?.accessToken, status]);
 
+    // Initial load
     useEffect(() => {
         if (status === "loading") return;
         if (initializedRef.current) return; 
@@ -87,17 +101,25 @@ export default function DocsPage() {
         fetchPreviousChats();
     }, [fetchPreviousChats, status]);
 
-    const updateURL = useCallback((docId: string | null) => {
-        const url = docId ? `${pathname}?id=${docId}` : pathname;
-        router.replace(url, { scroll: false });
-    }, [pathname, router]);
-
-    const handleNewChatCreated = useCallback((newChatId: string) => {
+    const handleNewChatCreated = useCallback(async (newChatId: string) => {
         console.log("New chat created with ID:", newChatId);
-        fetchPreviousChats();
-        updateURL(newChatId);
+        
+        updateURL(newChatId, true);
         setSelectedChatId(newChatId);
         setDocumentNotFound(false);
+        
+        const updatedChats = await fetchPreviousChats(true);
+        
+        const newChat = updatedChats.find(chat => chat.doc_id === newChatId);
+        if (!newChat) {
+            setTimeout(async () => {
+                await fetchPreviousChats(true);
+            }, 1000);
+        }
+        
+        if (window.innerWidth < 1024) {
+            setIsSidebarOpen(false);
+        }
     }, [fetchPreviousChats, updateURL]);
 
     useEffect(() => {
@@ -126,7 +148,7 @@ export default function DocsPage() {
     const handleChatClick = useCallback((chatId: string) => {
         setSelectedChatId(chatId);
         setDocumentNotFound(false);
-        updateURL(chatId);
+        updateURL(chatId, true);
         fetchChatHistory(chatId);
         if (window.innerWidth < 1024) {
             setIsSidebarOpen(false);
@@ -173,8 +195,14 @@ export default function DocsPage() {
         setSelectedChatId(null);
         setMessages([]);
         setDocumentNotFound(false);
-        updateURL(null);
+        updateURL(null, true);
     }, [updateURL]);
+
+    const handleMessageSuccess = useCallback(async (response: any) => {
+        if (response.doc_id && response.doc_id !== selectedChatId) {
+            await handleNewChatCreated(response.doc_id);
+        }
+    }, [selectedChatId, handleNewChatCreated]);
 
     if (status === "loading") {
         return (
@@ -278,13 +306,14 @@ export default function DocsPage() {
 
                 {documentNotFound ? (
                     <DocumentNotFoundComponent />
-
                 ) : (
                     <Chat_window
                         messages={messages}
                         isChatLoading={isChatLoading}
                         setMessages={setMessages}
                         selectedChatId={selectedChatId}
+                        onNewChatCreated={handleNewChatCreated}
+                        onMessageSuccess={handleMessageSuccess}
                     />
                 )}
             </div>
