@@ -1,6 +1,6 @@
 "use client"
 import { AnimatePresence, motion } from 'framer-motion'
-import { Loader2, User, Bot, Send, Plus, X, FileText, Upload, ArrowUp } from 'lucide-react'
+import { Loader2, User, Bot, Send, Plus, X, FileText, Upload, ArrowUp, Paperclip, MoreHorizontal } from 'lucide-react'
 import React, { useEffect, useRef, useState } from 'react'
 import ThinkingAnimation from '../ui/ThinkingAnimation'
 import { Message } from '@/types'
@@ -21,12 +21,13 @@ function Chat_window({
 }: Chat_WindowProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const addMoreFileInputRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [isThinking, setIsThinking] = useState(false);
     const [inputMessage, setInputMessage] = useState("");
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [isUploading, setIsUploading] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [contextOnly, setContextOnly] = useState(false);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -50,19 +51,30 @@ function Chat_window({
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const files = Array.from(e.target.files);
-            const pdfFiles = files.filter(file => file.type === "application/pdf");
+            // Support multiple file types
+            const supportedTypes = [
+                'application/pdf',
+                'text/plain',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'image/png',
+                'image/jpeg',
+                'image/jpg',
+                'image/tiff',
+                'image/bmp'
+            ];
+            
+            const validFiles = files.filter(file => supportedTypes.includes(file.type));
 
-            if (pdfFiles.length !== files.length) {
-                alert("Only PDF files are supported");
+            if (validFiles.length !== files.length) {
+                alert("Some files were ignored. Supported formats: PDF, TXT, DOC, DOCX, PNG, JPG, JPEG, TIFF, BMP");
             }
 
-            setSelectedFiles(prev => [...prev, ...pdfFiles]);
+            setSelectedFiles(prev => [...prev, ...validFiles]);
+            setShowDropdown(false);
         }
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
-        }
-        if (addMoreFileInputRef.current) {
-            addMoreFileInputRef.current.value = '';
         }
     };
 
@@ -91,7 +103,7 @@ function Chat_window({
     };
 
     const handleFileUpload = async () => {
-        if (selectedFiles.length === 0 || !selectedChatId) return;
+        if (selectedFiles.length === 0) return;
 
         setIsUploading(true);
 
@@ -110,14 +122,26 @@ function Chat_window({
 
         try {
             const formData = new FormData();
-            formData.append("doc_id", selectedChatId);
+            
+            // If no selectedChatId, this will create a new chat
+            if (selectedChatId) {
+                formData.append("doc_id", selectedChatId);
+            }
 
             // Add files
             currentFiles.forEach((file) => {
                 formData.append("files", file);
             });
 
-            const response = await axiosInstance.post("/ai/pdfchat/upload", formData, {
+            // Set doc_name from file names if no selectedChatId
+            if (!selectedChatId) {
+                const docName = currentFiles.length === 1 
+                    ? currentFiles[0].name.replace(/\.[^/.]+$/, "")
+                    : `${currentFiles.length} Documents`;
+                formData.append("doc_name", docName);
+            }
+
+            const response = await axiosInstance.post("/ai/chat/upload", formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },
@@ -126,7 +150,7 @@ function Chat_window({
             const botMessage: Message = {
                 id: `bot-${Date.now()}`,
                 type: "bot",
-                content: response.data.message || `✅ Successfully added ${currentFiles.length} PDF${currentFiles.length > 1 ? 's' : ''} to this chat. You can now ask questions about the content.`,
+                content: response.data.message || `✅ Successfully added ${currentFiles.length} file${currentFiles.length > 1 ? 's' : ''} to this chat. You can now ask questions about the content.`,
                 timestamp: new Date(),
             };
 
@@ -148,7 +172,7 @@ function Chat_window({
     };
 
     const handleSendMessage = async () => {
-        if (!inputMessage.trim() || isThinking || !selectedChatId) return;
+        if (!inputMessage.trim() || isThinking) return;
 
         setIsThinking(true);
         scrollToBottom();
@@ -164,17 +188,26 @@ function Chat_window({
         const currentMessage = inputMessage.trim();
         setInputMessage("");
         
-        // Reset textarea height
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
         }
 
         try {
             const formData = new FormData();
-            formData.append("doc_id", selectedChatId);
+            
+            if (selectedChatId) {
+                formData.append("doc_id", selectedChatId);
+            } else {
+                const docName = currentMessage.length > 50 
+                    ? currentMessage.substring(0, 50) + "..."
+                    : currentMessage;
+                formData.append("doc_name", docName);
+            }
+            
             formData.append("question", currentMessage);
+            formData.append("context_only", contextOnly.toString());
 
-            const response = await axiosInstance.post("/ai/pdfchat/ask", formData, {
+            const response = await axiosInstance.post("/ai/chat/ask", formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },
@@ -220,6 +253,25 @@ function Chat_window({
                     {/* Messages Container */}
                     <div className="flex-1 overflow-y-auto">
                         <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-6">
+                            {/* Welcome message for new chats */}
+                            {messages.length === 0 && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="text-center py-8"
+                                >
+                                    <div className="w-16 h-16 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <Bot className="w-8 h-8 text-white" />
+                                    </div>
+                                    <h2 className="text-2xl font-bold mb-2 text-foreground">
+                                        How can I help you today?
+                                    </h2>
+                                    <p className="text-muted-foreground">
+                                        Ask me anything or upload documents to chat about their content
+                                    </p>
+                                </motion.div>
+                            )}
+
                             <AnimatePresence>
                                 {messages.map((message) => (
                                     <motion.div
@@ -300,15 +352,69 @@ function Chat_window({
                         <div className="w-full max-w-3xl mx-auto px-4 pb-6">
                             <div className="relative bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm">
                                 <div className="flex items-end p-3">
-                                    {/* Add Files Button */}
-                                    <button
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={isThinking || isUploading}
-                                        className="flex-shrink-0 p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                                        title="Attach files"
-                                    >
-                                        <Plus className="w-5 h-5" />
-                                    </button>
+                                    {/* Dropdown Menu Button */}
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowDropdown(!showDropdown)}
+                                            disabled={isThinking || isUploading}
+                                            className="flex-shrink-0 p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                                            title="More options"
+                                        >
+                                            <Plus className="w-5 h-5" />
+                                        </button>
+
+                                        {/* Dropdown Menu */}
+                                        {showDropdown && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: 10 }}
+                                                className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 z-50"
+                                            >
+                                                {/* File Upload Option */}
+                                                <button
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    className="w-full flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
+                                                >
+                                                    <Paperclip className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                                                    <div>
+                                                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                            Attach files
+                                                        </div>
+                                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                            PDF, TXT, DOC, Images
+                                                        </div>
+                                                    </div>
+                                                </button>
+
+                                                {/* Context Only Toggle */}
+                                                <div className="mt-2 p-2 border-t border-gray-200 dark:border-gray-700">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                                Context Only
+                                                            </div>
+                                                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                                Only search in uploaded documents
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => setContextOnly(!contextOnly)}
+                                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                                                                contextOnly ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
+                                                            }`}
+                                                        >
+                                                            <span
+                                                                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                                                                    contextOnly ? 'translate-x-5' : 'translate-x-1'
+                                                                }`}
+                                                            />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </div>
 
                                     {/* Text Input */}
                                     <div className="flex-1 min-w-0 mx-2">
@@ -357,12 +463,27 @@ function Chat_window({
                             <input
                                 ref={fileInputRef}
                                 type="file"
-                                accept=".pdf"
+                                accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg,.tiff,.bmp"
                                 multiple
                                 onChange={handleFileSelect}
                                 className="hidden"
                             />
+
+                            {/* Context only indicator */}
+                            {contextOnly && (
+                                <div className="mt-2 text-xs text-blue-500 dark:text-blue-400 text-center">
+                                    Context Only mode: Searching only in uploaded documents
+                                </div>
+                            )}
                         </div>
+
+                        {/* Click outside to close dropdown */}
+                        {showDropdown && (
+                            <div 
+                                className="fixed inset-0 z-40" 
+                                onClick={() => setShowDropdown(false)}
+                            />
+                        )}
                     </div>
                 </>
             )}

@@ -52,7 +52,7 @@ export default function UploadFile({
             formData.append("doc_name", finalChatName);
 
             const response = await axiosInstance.post(
-                "/ai/pdfchat/upload",
+                "/ai/chat/upload",
                 formData,
                 {
                     headers: {

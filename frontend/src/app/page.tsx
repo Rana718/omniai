@@ -1,12 +1,15 @@
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import { FileText, ArrowRight, Sparkles, Image, Globe, FileImage, FileCode, Files, Brain } from "lucide-react";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Feature } from "@/const";
+import { useSession } from "next-auth/react";
 
 function LandingPage() {
+    const { data: session } = useSession();
+
     const fadeInUp = {
         initial: { opacity: 0, y: 60 },
         animate: { opacity: 1, y: 0 },
@@ -58,33 +61,32 @@ function LandingPage() {
                 </div>
                 <div className="flex items-center space-x-2 sm:space-x-4">
                     <ThemeToggle />
-                    <Link href="/sign-in">
-                        <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="hidden sm:block px-3 py-2 sm:px-4 transition-colors hover:opacity-80 text-sm sm:text-base"
-                            style={{ color: "var(--muted-foreground)" }}
-                        >
-                            Sign In
-                        </motion.button>
-                    </Link>
-                    <Link href="/home">
-                        <motion.button
-                            {...scaleOnHover}
-                            className="px-3 py-2 sm:px-6 text-xs sm:text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-shadow"
-                        >
-                            <span className="hidden sm:inline">
-                                Get Started
-                            </span>
-                            <span className="sm:hidden">Start</span>
-                        </motion.button>
-                    </Link>
+                    {session ? (
+                        <Link href="/chat">
+                            <motion.button
+                                {...scaleOnHover}
+                                className="px-3 py-2 sm:px-6 text-xs sm:text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-shadow"
+                            >
+                                Start
+                            </motion.button>
+                        </Link>
+                    ) : (
+                        <Link href="/sign-in">
+                            <motion.button
+                                {...scaleOnHover}
+                                className="px-3 py-2 sm:px-6 text-xs sm:text-sm bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-shadow"
+                            >
+                                Sign In
+                            </motion.button>
+                        </Link>
+                    )}
+                   
                 </div>
             </motion.nav>
 
             {/* Hero Section */}
             <section className="relative px-4 py-12 sm:px-6 sm:py-16 md:px-8 md:py-20 lg:px-12 xl:px-20 pt-24 sm:pt-28 md:pt-32">
-                
+
                 <div className="hidden lg:block absolute inset-0 pointer-events-none">
                     {floatingIcons.map((item, index) => (
                         <motion.div
