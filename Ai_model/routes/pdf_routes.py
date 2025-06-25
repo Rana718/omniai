@@ -19,7 +19,6 @@ async def upload_files(
         if doc_name is None:
             doc_name = "NEW DOCUMENT"
 
-    # Validate files
     if not files or len(files) == 0:
         raise HTTPException(
             status_code=400, 
@@ -75,7 +74,8 @@ async def ask_question(
     request: Request, 
     doc_id: str = Form(None), 
     question: str = Form(...),
-    context_only: str = Form("false")  # Changed to str
+    context_only: str = Form("false"),
+    doc_name: str = Form(None)
 ):
     userid = request.state.user_id
     
@@ -85,18 +85,19 @@ async def ask_question(
             detail="Question cannot be empty"
         )
     
-    # Convert string to boolean
     context_only_bool = context_only.lower() in ('true', '1', 'yes', 'on')
     
-    # Create a new doc_id if not provided (normal chat)
     is_normal_chat = False
     if not doc_id:
         is_normal_chat = True
         doc_id = generate_doc_id()
         try:
-            # Create a new chat via gRPC
             client = ServiceClient()
-            response = await client.create_chat(doc_id, userid, doc_text="Normal Chat")
+            print("doc_name:", doc_name)
+            if(not doc_name):
+                print("⚠️ No doc_name provided for normal chat, using default 'New Chat'")
+                doc_name = "New Chat"
+            response = await client.create_chat(doc_id, userid, doc_text=doc_name)
             if not response:
                 print(f"⚠️ Failed to create normal chat via gRPC")
         except Exception as e:
@@ -107,6 +108,6 @@ async def ask_question(
         doc_id, 
         question, 
         is_normal_chat=is_normal_chat,
-        context_only=context_only_bool  # Pass as boolean
+        context_only=context_only_bool  
     )
     return {"answer": answer, "doc_id": doc_id}

@@ -3,7 +3,7 @@ import shutil
 import json
 from services.grpc_func import ServiceClient
 from services.producer import produce_qa_history
-from datetime import datetime
+from datetime import datetime, timezone
 from .redis_config import get_redis, is_redis_connected
 from .id_gen import generate_doc_id
 
@@ -30,7 +30,7 @@ async def append_history(doc_id, question, answer):
     
     hisid = generate_doc_id()
     
-    timestamp = datetime.now().isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
     await store_in_redis_cache(doc_id, question, answer, hisid, timestamp)
     
     produce_qa_history(doc_id, question, answer, hisid, timestamp)
@@ -46,10 +46,11 @@ def store_in_json_file(doc_id, question, answer):
             with open(HISTORY_FILE, "r") as f:
                 history = json.load(f)
 
+        timestamp = datetime.now(timezone.utc).isoformat()
         history.setdefault(doc_id, []).append({
             "question": question, 
             "answer": answer, 
-            "timestamp": datetime.now().isoformat()
+            "timestamp": timestamp
         })
 
         with open(HISTORY_FILE, "w") as f:

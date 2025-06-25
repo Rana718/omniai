@@ -45,11 +45,9 @@ async def process_files(user_id, doc_id, files, name):
     """Process multiple file types and store in Pinecone"""
     start_time = time.time()
     
-    # Ensure name is not None or empty
     if not name or name.strip() == "":
         name = "Untitled Document"
     
-    # Try to get or create chat (with error handling)
     try:
         chat = await client.get_chat(doc_id)
         if not chat:
@@ -70,14 +68,12 @@ async def process_files(user_id, doc_id, files, name):
         print(f"⚠️ Chat service unavailable: {e}")
         print("📝 Proceeding with file processing without chat creation")
     
-    # Process files
     try:
         folder = save_files(user_id, doc_id, files)
         full_text = extract_text_from_all_files(folder)
         
         if not full_text.strip():
             print(f"❌ No text extracted from {len(files)} files")
-            # Log file details for debugging
             for file in files:
                 print(f"📄 File: {file.filename}, Size: {file.size if hasattr(file, 'size') else 'unknown'}")
             
@@ -85,11 +81,9 @@ async def process_files(user_id, doc_id, files, name):
                 "error": "No text could be extracted from the uploaded files. Please ensure your files contain readable text or try uploading different file formats (PDF, TXT, DOC, DOCX, or images with text)."
             }
         
-        # Count words in extracted text
         word_count = count_words(full_text)
         print(f"📊 Extracted {word_count} words from {len(files)} files")
         
-        # Check minimum word requirement
         if word_count < 20:
             return {
                 "error": f"The extracted text contains only {word_count} words. A minimum of 20 words is required for processing. Please upload files with more text content."
@@ -107,7 +101,6 @@ async def process_files(user_id, doc_id, files, name):
         embeddings = await get_cached_embeddings()
         vector_store = await get_pinecone_vector_store(doc_id, embeddings)
         
-        # Store in Pinecone
         index = get_pinecone_index()
         namespace = f"doc_{doc_id}"
         
@@ -130,7 +123,6 @@ async def process_files(user_id, doc_id, files, name):
         metadatas = []
         ids = []
         
-        # Get valid file types, ensuring no None values
         file_types = []
         for f in files:
             if f.filename and '.' in f.filename:
@@ -143,14 +135,13 @@ async def process_files(user_id, doc_id, files, name):
                 chunk_id = f"{doc_id}_chunk_{i}_{uuid.uuid4().hex[:8]}"
                 texts_with_metadata.append(chunk.strip())
                 
-                # Ensure all metadata values are valid (no None values)
                 metadata = {
                     "doc_id": str(doc_id),
                     "chunk_id": i,
                     "user_id": str(user_id),
-                    "doc_name": str(name),  # Ensure it's a string
+                    "doc_name": str(name),  
                     "timestamp": float(time.time()),
-                    "file_types": file_types,  # List of strings
+                    "file_types": file_types,  
                     "total_words": int(word_count)
                 }
                 

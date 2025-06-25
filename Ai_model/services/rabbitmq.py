@@ -17,8 +17,7 @@ def get_rabbitmq_channel():
         connection = pika.BlockingConnection(parameters)
         channel = connection.channel()
 
-        # Declare queue
-        channel.queue_declare(queue="pdf_caht", durable=True)
+        channel.queue_declare(queue="pdf_chat", durable=True)
 
         yield channel
 

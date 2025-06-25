@@ -32,7 +32,6 @@ async def answer_question(user_id, doc_id, question, is_normal_chat=False, conte
         return answer
     
     try:
-        # For normal chat (without document context)
         if is_normal_chat:
             if context_only:
                 answer = "I can't provide a context-only answer for a normal chat as there's no document context available. Please upload a document first or ask questions about your documents."
@@ -41,7 +40,6 @@ async def answer_question(user_id, doc_id, question, is_normal_chat=False, conte
                 return answer
                 
             print(f"💬 Processing as normal chat for doc_id: {doc_id}")
-            # Use direct model call for normal chat - clean prompt without history
             model = await chain_manager.get_direct_model(doc_id)
             
             prompt = f"""You are Jack, a helpful AI assistant. Answer the user's question directly and conversationally.
@@ -61,17 +59,14 @@ async def answer_question(user_id, doc_id, question, is_normal_chat=False, conte
             
             return answer
         
-        # For document-based chat
         if context_only:
             print("📄 Using context-only mode - searching embedded data only")
             vector_store = await get_cached_vector_store(doc_id)
             context = await optimized_content_search(question, vector_store, top_k=4)
             
-            # Get conversation history for context-only mode
             history = load_history(doc_id)[-3:]
             history_str = "\n".join([f"Q: {h['question']}\nA: {h['answer']}" for h in history])
             
-            # Get context-only chain
             chain = await chain_manager.get_chain(doc_id, context_only=True)
             
             if not context:
@@ -98,10 +93,8 @@ async def answer_question(user_id, doc_id, question, is_normal_chat=False, conte
         else:
             print("🔄 Using hybrid mode - Pure Gemini response without document interference")
             
-            # Get direct model for hybrid mode
             model = await chain_manager.get_direct_model(doc_id)
             
-            # Create clean prompt for pure Gemini response without context or history interference
             prompt = f"""You are Jack, a helpful AI assistant. Answer the user's question directly using your knowledge.
 
             Instructions:
