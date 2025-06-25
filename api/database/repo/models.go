@@ -5,32 +5,34 @@
 package repo
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Chat struct {
-	ID        uuid.UUID          `json:"id"`
-	UserID    uuid.UUID          `json:"user_id"`
-	DocID     string             `json:"doc_id"`
-	DocText   string             `json:"doc_text"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID        uuid.UUID `json:"id"`
+	UserID    uuid.UUID `json:"user_id"`
+	DocID     string    `json:"doc_id"`
+	DocText   string    `json:"doc_text"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type QaHistory struct {
-	ID        uuid.UUID          `json:"id"`
-	ChatID    uuid.UUID          `json:"chat_id"`
-	Question  string             `json:"question"`
-	Answer    string             `json:"answer"`
-	Timestamp pgtype.Timestamptz `json:"timestamp"`
+	ID        uuid.UUID `json:"id"`
+	ChatID    uuid.UUID `json:"chat_id"`
+	Question  string    `json:"question"`
+	Answer    string    `json:"answer"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 type User struct {
-	ID             uuid.UUID          `json:"id"`
-	Email          string             `json:"email"`
-	Name           string             `json:"name"`
-	HashedPassword string             `json:"hashed_password"`
-	Image          pgtype.Text        `json:"image"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	ID             uuid.UUID   `json:"id"`
+	Email          string      `json:"email"`
+	Name           string      `json:"name"`
+	HashedPassword string      `json:"hashed_password"`
+	Image          pgtype.Text `json:"image"`
+	CreatedAt      time.Time   `json:"created_at"`
+	UpdatedAt      time.Time   `json:"updated_at"`
 }

@@ -11,7 +11,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type ChatResponse struct {
@@ -62,7 +61,7 @@ func GetAllChats(c *fiber.Ctx) error {
 		response = append(response, ChatResponse{
 			DocID:     chat.DocID,
 			DocText:   chat.DocText,
-			CreatedAt: formatTimestamptz(chat.CreatedAt),
+			CreatedAt: chat.CreatedAt.Format(time.RFC3339),
 			UserID:    chat.UserID.String(),
 		})
 	}
@@ -71,13 +70,6 @@ func GetAllChats(c *fiber.Ctx) error {
 	config.Client.Set(config.Ctx, cacheKey, responseJSON, 10*time.Minute)
 
 	return c.JSON(response)
-}
-
-func formatTimestamptz(ts pgtype.Timestamptz) string {
-	if ts.Valid {
-		return ts.Time.Format("2006-01-02T15:04:05Z07:00")
-	}
-	return ""
 }
 
 func GetChatHistory(c *fiber.Ctx) error {
@@ -121,7 +113,6 @@ func GetChatHistory(c *fiber.Ctx) error {
 		}
 	}
 
-	// Get DB data and merge (avoiding duplicates)
 	dbHistory, err := database.DBStore.GetQAHistoriesByChatID(c.Context(), chatInfo.ID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -135,18 +126,16 @@ func GetChatHistory(c *fiber.Ctx) error {
 				ID:        h.ID.String(),
 				Question:  h.Question,
 				Answer:    h.Answer,
-				Timestamp: formatTimestamptz(h.Timestamp),
+				Timestamp: h.Timestamp.Format(time.RFC3339),
 			})
 			seenIDs[h.ID.String()] = true
 		}
 	}
 
-	// Sort by timestamp
 	sort.Slice(allHistory, func(i, j int) bool {
 		timeI, errI := time.Parse(time.RFC3339, allHistory[i].Timestamp)
 		timeJ, errJ := time.Parse(time.RFC3339, allHistory[j].Timestamp)
 
-		// Handle parsing errors
 		if errI != nil || errJ != nil {
 			return false
 		}
@@ -154,7 +143,6 @@ func GetChatHistory(c *fiber.Ctx) error {
 		return timeI.Before(timeJ)
 	})
 
-	// Convert to response format
 	var historyResponse []HistoryResponse
 	for _, item := range allHistory {
 		historyResponse = append(historyResponse, HistoryResponse{

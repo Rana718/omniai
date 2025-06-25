@@ -7,9 +7,9 @@ package repo
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createQAHistory = `-- name: CreateQAHistory :one
@@ -25,11 +25,11 @@ INSERT INTO qa_histories (
 `
 
 type CreateQAHistoryParams struct {
-	ID        uuid.UUID          `json:"id"`
-	ChatID    uuid.UUID          `json:"chat_id"`
-	Question  string             `json:"question"`
-	Answer    string             `json:"answer"`
-	Timestamp pgtype.Timestamptz `json:"timestamp"`
+	ID        uuid.UUID `json:"id"`
+	ChatID    uuid.UUID `json:"chat_id"`
+	Question  string    `json:"question"`
+	Answer    string    `json:"answer"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 func (q *Queries) CreateQAHistory(ctx context.Context, arg CreateQAHistoryParams) (QaHistory, error) {
@@ -52,11 +52,11 @@ func (q *Queries) CreateQAHistory(ctx context.Context, arg CreateQAHistoryParams
 }
 
 type CreateQAHistoryBatchParams struct {
-	ID        uuid.UUID          `json:"id"`
-	ChatID    uuid.UUID          `json:"chat_id"`
-	Question  string             `json:"question"`
-	Answer    string             `json:"answer"`
-	Timestamp pgtype.Timestamptz `json:"timestamp"`
+	ID        uuid.UUID `json:"id"`
+	ChatID    uuid.UUID `json:"chat_id"`
+	Question  string    `json:"question"`
+	Answer    string    `json:"answer"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 const getQAHistoriesByChatID = `-- name: GetQAHistoriesByChatID :many

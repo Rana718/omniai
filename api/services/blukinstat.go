@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/streadway/amqp"
 )
 
@@ -91,7 +90,7 @@ func bulkInsertWorker() {
 		}
 
 		log.Printf("Bulk inserting %d messages", len(messageBuffer))
-
+		log.Printf("\nStarting bulk insert: %v", messageBuffer[0])
 		if err := bulkInsertToDB(messageBuffer); err != nil {
 			log.Printf("Error bulk inserting: %v", err)
 		} else {
@@ -108,7 +107,6 @@ func bulkInsertToDB(messages []QAMessage) error {
 
 	ctx := context.Background()
 
-	// Use a transaction
 	tx, err := database.DBPool.Begin(ctx)
 	if err != nil {
 		return err
@@ -118,46 +116,30 @@ func bulkInsertToDB(messages []QAMessage) error {
 	qtx := repo.New(tx)
 
 	for _, msg := range messages {
-		// Get chat by doc_id
 		chat, err := qtx.GetChatByDocID(ctx, msg.DocID)
 		if err != nil {
 			log.Printf("Chat not found for doc_id %s: %v", msg.DocID, err)
 			continue
 		}
-
-		// Parse timestamp with multiple format attempts
-		var timestamp time.Time
-
-		// Try RFC3339 first (with timezone)
-		timestamp, err = time.Parse(time.RFC3339, msg.Timestamp)
-		if err != nil {
-			// Try without timezone
-			timestamp, err = time.Parse("2006-01-02T15:04:05.000000", msg.Timestamp)
-			if err != nil {
-				// Try without microseconds
-				timestamp, err = time.Parse("2006-01-02T15:04:05", msg.Timestamp)
-				if err != nil {
-					log.Printf("Error parsing timestamp %s: %v", msg.Timestamp, err)
-					timestamp = time.Now()
-				}
-			}
-		}
-		// Convert string ID to UUID
 		idUUID, err := uuid.Parse(msg.ID)
 		if err != nil {
 			log.Printf("Error parsing UUID %s: %v", msg.ID, err)
 			return err
 		}
 
-		// Create QA history
+		parsedTime, err := time.Parse(time.RFC3339, msg.Timestamp)
+		if err != nil {
+			log.Printf("Error parsing timestamp %s: %v", msg.Timestamp, err)
+			return err
+		}
+
 		_, err = qtx.CreateQAHistory(ctx, repo.CreateQAHistoryParams{
 			ID:        idUUID,
 			ChatID:    chat.ID,
 			Question:  msg.Question,
 			Answer:    msg.Answer,
-			Timestamp: pgtype.Timestamptz{Time: timestamp, Valid: true},
+			Timestamp: parsedTime,
 		})
-		
 
 		if err != nil {
 			log.Printf("Error creating QA history: %v", err)
@@ -165,7 +147,6 @@ func bulkInsertToDB(messages []QAMessage) error {
 		}
 	}
 
-	// Commit transaction
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}

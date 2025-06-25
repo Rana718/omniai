@@ -7,18 +7,19 @@ package repo
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createChat = `-- name: CreateChat :one
 INSERT INTO chats (
     user_id,
     doc_id,
-    doc_text
+    doc_text,
+    created_at
 ) VALUES (
-    $1, $2, $3
+    $1, $2, $3, NOW()
 ) RETURNING id, user_id, doc_id, doc_text, created_at
 `
 
@@ -90,11 +91,11 @@ ORDER BY created_at DESC
 `
 
 type GetUserChatsRow struct {
-	ID        uuid.UUID          `json:"id"`
-	DocID     string             `json:"doc_id"`
-	DocText   string             `json:"doc_text"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UserID    uuid.UUID          `json:"user_id"`
+	ID        uuid.UUID `json:"id"`
+	DocID     string    `json:"doc_id"`
+	DocText   string    `json:"doc_text"`
+	CreatedAt time.Time `json:"created_at"`
+	UserID    uuid.UUID `json:"user_id"`
 }
 
 func (q *Queries) GetUserChats(ctx context.Context, userID uuid.UUID) ([]GetUserChatsRow, error) {

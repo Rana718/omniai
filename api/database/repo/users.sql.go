@@ -17,9 +17,11 @@ INSERT INTO users (
     name,
     email,
     hashed_password,
-    image
+    image,
+    created_at,
+    updated_at
 ) VALUES (
-    $1, $2, $3, $4
+    $1, $2, $3, $4, NOW(), NOW()
 ) RETURNING id, email, name, hashed_password, image, created_at, updated_at
 `
 

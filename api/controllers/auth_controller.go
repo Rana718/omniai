@@ -44,7 +44,7 @@ func Register(c *fiber.Ctx) error {
 		Image:          pgtype.Text{Valid: false},
 	})
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create user"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create user", "details": err.Error()})
 	}
 
 	token, err := helper.GenerateToken(user.Email)

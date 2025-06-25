@@ -1,12 +1,12 @@
 package database
 
 import (
+	"apiserver/database/repo"
 	"context"
 	"log"
 	"os"
-	"time"
-	"apiserver/database/repo"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -23,11 +23,7 @@ func ConnectDatabase() {
 	if err != nil {
 		log.Fatal("Failed to parse database URL:", err)
 	}
-
-	config.MaxConns = 100
-	config.MinConns = 5
-	config.MaxConnLifetime = time.Hour
-	config.MaxConnIdleTime = 30 * time.Minute
+	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 
 	ctx := context.Background()
 	DBPool, err = pgxpool.NewWithConfig(ctx, config)
