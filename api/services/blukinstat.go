@@ -121,29 +121,21 @@ func bulkInsertToDB(messages []QAMessage) error {
 			log.Printf("Chat not found for doc_id %s: %v", msg.DocID, err)
 			continue
 		}
+		
 		idUUID, err := uuid.Parse(msg.ID)
 		if err != nil {
 			log.Printf("Error parsing UUID %s: %v", msg.ID, err)
-			return err
+			continue
 		}
 
-		parsedTime, err := time.Parse(time.RFC3339, msg.Timestamp)
-		if err != nil {
-			log.Printf("Error parsing timestamp %s: %v", msg.Timestamp, err)
-			return err
-		}
-
-		_, err = qtx.CreateQAHistory(ctx, repo.CreateQAHistoryParams{
-			ID:        idUUID,
-			ChatID:    chat.ID,
-			Question:  msg.Question,
-			Answer:    msg.Answer,
-			Timestamp: parsedTime,
-		})
+		_, err = tx.Exec(ctx, `
+			INSERT INTO qa_histories (id, chat_id, question, answer, timestamp) 
+			VALUES ($1, $2, $3, $4, $5)
+		`, idUUID, chat.ID, msg.Question, msg.Answer, msg.Timestamp)
 
 		if err != nil {
-			log.Printf("Error creating QA history: %v", err)
-			return err
+			log.Printf("Error creating QA history for message %s: %v", msg.ID, err)
+			continue
 		}
 	}
 
