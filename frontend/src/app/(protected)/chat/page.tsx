@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Home, Menu, AlertCircle } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -10,7 +10,7 @@ import Chat_window from "@/components/chat/Chat_window";
 import { HistoryItem, Message, PreviousChat } from "@/types";
 import Link from "next/link";
 
-export default function DocsPage() {
+function ChatPageInner() {
     const { data: session, status } = useSession();
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -320,5 +320,17 @@ export default function DocsPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function DocsPage() {
+    return (
+        <Suspense fallback={
+            <div className="h-screen flex items-center justify-center bg-background">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+        }>
+            <ChatPageInner />
+        </Suspense>
     );
 }

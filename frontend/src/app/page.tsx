@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect } from "react";
 import { motion } from "framer-motion";
-import { FileText, ArrowRight, Sparkles, Image, Globe, FileImage, FileCode, Files, Brain, Star, Quote, Twitter, Github, Linkedin, Mail, Shield, Users, Award } from "lucide-react";
+import { FileText, ArrowRight, Sparkles, Image, Globe, FileImage, FileCode, Files, Brain, Star, Quote, XIcon, Code2, ExternalLink, Mail, Shield, Users, Award } from "lucide-react";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Feature } from "@/const";
@@ -580,9 +580,9 @@ function LandingPage() {
                                 </p>
                                 <div className="flex space-x-3">
                                     {[
-                                        { icon: Twitter, href: "#", color: "hover:text-blue-400" },
-                                        { icon: Github, href: "https://github.com/Rana718", color: "hover:text-gray-300" },
-                                        { icon: Linkedin, href: "#", color: "hover:text-blue-500" },
+                                        { icon: XIcon, href: "#", color: "hover:text-blue-400" },
+                                        { icon: Code2, href: "https://github.com/Rana718", color: "hover:text-gray-300" },
+                                        { icon: ExternalLink, href: "#", color: "hover:text-blue-500" },
                                         { icon: Mail, href: "#", color: "hover:text-green-400" }
                                     ].map((social, index) => (
                                         <motion.a
