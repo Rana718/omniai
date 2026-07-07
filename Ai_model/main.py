@@ -25,6 +25,14 @@ async def lifespan(app: FastAPI):
         print(f"✅ Pinecone initialized - {pinecone_stats}")
     else:
         print("❌ Failed to initialize Pinecone")
+    
+    # Initialize gRPC client
+    try:
+        from services.grpc_func import ServiceClient
+        grpc_client = ServiceClient()
+        print("✅ gRPC client initialized")
+    except Exception as e:
+        print(f"❌ Failed to initialize gRPC client: {e}")
         
     yield
     
@@ -33,6 +41,14 @@ async def lifespan(app: FastAPI):
         await close_redis()
     except Exception as e:
         print(f"⚠️ Error during Redis shutdown: {e}")
+    
+    # Close gRPC client
+    try:
+        grpc_client = ServiceClient()
+        await grpc_client.close()
+        print("✅ gRPC client closed")
+    except Exception as e:
+        print(f"⚠️ Error during gRPC client shutdown: {e}")
 
 app = FastAPI(lifespan=lifespan)
 

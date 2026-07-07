@@ -1,0 +1,11 @@
+{
+  "migration": {
+    "id": "20250716183400_init",
+    "name": "Initial database setup",
+    "applied": false,
+    "up": "-- Enable required extensions\nCREATE EXTENSION IF NOT EXISTS \"pgcrypto\";\n\n-- Create users table\nCREATE TABLE IF NOT EXISTS users (\n    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n    email TEXT NOT NULL UNIQUE,\n    name TEXT NOT NULL,\n    hashed_password TEXT NOT NULL,\n    image TEXT,\n    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\n-- Create chats table\nCREATE TABLE IF NOT EXISTS chats (\n    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n    doc_id TEXT NOT NULL,\n    doc_text TEXT NOT NULL,\n    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\n-- Create qa_histories table\nCREATE TABLE IF NOT EXISTS qa_histories (\n    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n    chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,\n    question TEXT NOT NULL,\n    answer TEXT NOT NULL,\n    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\n-- Create indexes\nCREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(email);\nCREATE INDEX IF NOT EXISTS idx_users_id ON users(id);\nCREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id);\nCREATE INDEX IF NOT EXISTS idx_qa_histories_chat_id ON qa_histories(chat_id);\nCREATE INDEX IF NOT EXISTS idx_qa_histories_timestamp ON qa_histories(timestamp DESC);",
+    "down": "-- Drop indexes\nDROP INDEX IF EXISTS idx_qa_histories_timestamp;\nDROP INDEX IF EXISTS idx_qa_histories_chat_id;\nDROP INDEX IF EXISTS idx_chats_user_id;\nDROP INDEX IF EXISTS idx_users_id;\nDROP INDEX IF EXISTS idx_users_email_unique;\n\n-- Drop tables in reverse order\nDROP TABLE IF EXISTS qa_histories CASCADE;\nDROP TABLE IF EXISTS chats CASCADE;\nDROP TABLE IF EXISTS users CASCADE;\n\n-- Drop extensions\nDROP EXTENSION IF EXISTS \"pgcrypto\";",
+    "checksum": "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456",
+    "created_at": "2025-07-16T18:34:00Z"
+  }
+}

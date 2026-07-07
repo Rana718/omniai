@@ -6,8 +6,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-grpc_client = ServiceClient()
-
 class JWTAuthMiddleware(BaseHTTPMiddleware):
     def __init__(self, app):
         super().__init__(app)
@@ -49,6 +47,8 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             )
         
         try:
+            # Use singleton instance
+            grpc_client = ServiceClient()
             user_id = await grpc_client.authenticate_user(token)
             if user_id is None:
                 return JSONResponse(
