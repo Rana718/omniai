@@ -154,6 +154,7 @@ export default function DocsPage() {
         if (window.innerWidth < 1024) {
             setIsSidebarOpen(false);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [updateURL]);
 
     const fetchChatHistory = useCallback(async (chatId: string) => {
