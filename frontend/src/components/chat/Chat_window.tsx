@@ -1,6 +1,6 @@
 "use client"
 import { AnimatePresence, motion } from 'framer-motion'
-import { Loader2, User, Bot, Send, Plus, X, FileText, Upload, ArrowUp, Paperclip, MoreHorizontal } from 'lucide-react'
+import { Loader2, User, Bot, Plus, X, FileText, Upload, ArrowUp, Paperclip } from 'lucide-react'
 import React, { useEffect, useRef, useState } from 'react'
 import ThinkingAnimation from '../ui/ThinkingAnimation'
 import { Message } from '@/types'
@@ -12,7 +12,7 @@ interface Chat_WindowProps {
     setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
     selectedChatId: string | null;
     onNewChatCreated?: (chatId: string) => void;
-    onMessageSuccess?: (response: any) => void;
+    onMessageSuccess?: (response: { doc_id?: string; message?: string; answer?: string }) => void;
 }
 
 function Chat_window({
@@ -81,6 +81,7 @@ function Chat_window({
         }
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const removeFile = (index: number) => {
         setSelectedFiles(prev => prev.filter((_, i) => i !== index));
     };

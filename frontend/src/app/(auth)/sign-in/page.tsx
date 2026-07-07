@@ -22,7 +22,7 @@ export default function SignIn() {
             router.push("/chat");
         }
         console.log("api_key", api_key);
-    }, [status, router]);
+    }, [status, router, api_key]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -207,7 +207,7 @@ export default function SignIn() {
                             className="text-base"
                             style={{ color: "var(--muted-foreground)" }}
                         >
-                            Don't have an account?{" "}
+                            Don&apos;t have an account?{" "}
                             <Link
                                 href="/sign-up"
                                 className="font-semibold transition-all duration-300 hover:underline bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"

@@ -1,7 +1,7 @@
 "use client";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { motion } from "framer-motion";
-import { FileText, ArrowRight, Sparkles, Image, Globe, FileImage, FileCode, Files, Brain, Star, Quote, Twitter, Github, Linkedin, Mail, Shield, Zap, Users, TrendingUp, Award, CheckCircle } from "lucide-react";
+import { FileText, ArrowRight, Sparkles, Image, Globe, FileImage, FileCode, Files, Brain, Star, Quote, Twitter, Github, Linkedin, Mail, Shield, Users, Award } from "lucide-react";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Feature } from "@/const";
@@ -103,7 +103,7 @@ function LandingPage() {
                     const isPlus = finalValue.includes('+');
                     const isSlash = finalValue.includes('/');
 
-                    let numericValue = parseInt(finalValue.replace(/[^\d]/g, ''));
+                    const numericValue = parseInt(finalValue.replace(/[^\d]/g, ''));
 
                     gsap.fromTo(stat,
                         { textContent: 0 },
@@ -471,7 +471,7 @@ function LandingPage() {
                                 </div>
 
                                 <p className="text-gray-700 dark:text-gray-300 mb-6 leading-relaxed italic">
-                                    "{testimonial.content}"
+                                    &quot;{testimonial.content}&quot;
                                 </p>
 
                                 <div className="flex items-center space-x-4">

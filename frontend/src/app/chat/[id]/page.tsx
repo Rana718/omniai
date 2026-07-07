@@ -104,7 +104,8 @@ function SharedChatPage() {
                 } else {
                     setError("No chat history found for this document.");
                 }
-            } catch (error: any) {
+            } catch (err) {
+                const error = err as { response?: { status?: number } };
                 console.error("Error fetching chat history:", error);
                 if (error.response?.status === 404) {
                     setError("Chat not found. It may have been deleted or you don't have access to it.");
@@ -121,6 +122,7 @@ function SharedChatPage() {
         fetchChatHistory();
     }, [id]);
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const ThinkingAnimation = () => (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -366,7 +368,7 @@ function SharedChatPage() {
                 >
                     <div className="flex items-center justify-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
                         <Eye className="w-4 h-4" />
-                        <span>You're viewing a shared chat in read-only mode.</span>
+                        <span>You&apos;re viewing a shared chat in read-only mode.</span>
                         <Link href="/" className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">
                             Start your own chat
                         </Link>

@@ -12,7 +12,7 @@ interface ChatOption {
     id: string;
     title: string;
     description: string;
-    icon: any;
+    icon: React.ElementType;
     color: string;
     bgColor: string;
     comingSoon?: boolean;

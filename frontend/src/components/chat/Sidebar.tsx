@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { FileText, X, Plus, Search, MessageSquare, Edit3, Trash2, User, LogOut, Home } from 'lucide-react';
+import { FileText, X, Plus, Search, MessageSquare, User, Home } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import React, { useState, useMemo } from 'react'
 import ThemeToggle from '../ThemeToggle';
@@ -36,7 +36,7 @@ function Sidebar({
 
         try {
             // Filter chats based on search query
-            let filtered = chats.filter(chat => {
+            const filtered = chats.filter(chat => {
                 // Handle cases where chat or doc_text might be null/undefined
                 if (!chat || typeof chat.doc_text !== 'string') {
                     return false;

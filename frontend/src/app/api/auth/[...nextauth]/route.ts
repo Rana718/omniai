@@ -12,7 +12,7 @@ const handler = NextAuth({
                 email: { label: "Email", type: "email" },
                 password: { label: "Password", type: "password" },
             },
-            async authorize(credentials, req) {
+            async authorize(credentials) {
                 if (!credentials?.email || !credentials?.password) {
                     console.log("Missing credentials");
                     return null;
@@ -37,7 +37,8 @@ const handler = NextAuth({
                         name: authData.user.name,
                         accessToken: authData.access_token,
                     };
-                } catch (error: any) {
+                } catch (err) {
+                    const error = err as { response?: { data?: unknown }; message?: string };
                     console.error(
                         "Auth error:",
                         error?.response?.data || error.message,

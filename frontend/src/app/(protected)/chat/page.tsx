@@ -143,6 +143,7 @@ export default function DocsPage() {
             setSelectedChatId(null);
             setMessages([]);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [docId, previousChats, isInitialLoadComplete, status]);
 
     const handleChatClick = useCallback((chatId: string) => {
@@ -198,7 +199,7 @@ export default function DocsPage() {
         updateURL(null, true);
     }, [updateURL]);
 
-    const handleMessageSuccess = useCallback(async (response: any) => {
+    const handleMessageSuccess = useCallback(async (response: { doc_id?: string }) => {
         if (response.doc_id && response.doc_id !== selectedChatId) {
             await handleNewChatCreated(response.doc_id);
         }
@@ -222,7 +223,7 @@ export default function DocsPage() {
                     Document Not Found
                 </h2>
                 <p className="text-muted-foreground mb-6">
-                    The document you're looking for might have been deleted or you don't have access to it.
+                    The document you&apos;re looking for might have been deleted or you don&apos;t have access to it.
                 </p>
                 <div className="space-y-3">
                     <button

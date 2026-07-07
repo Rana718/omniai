@@ -45,7 +45,8 @@ export default function SignUp() {
 
             router.push("/chat");
             router.refresh();
-        } catch (error: any) {
+        } catch (err) {
+            const error = err as { response?: { data?: { detail?: string } } };
             console.error("Registration error:", error);
             setError(error.response?.data?.detail || "Registration failed");
             setIsLoading(false);

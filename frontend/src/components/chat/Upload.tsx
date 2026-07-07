@@ -16,7 +16,7 @@ interface UploadProps {
 }
 
 export default function UploadFile({
-    file,
+    file: _file,
     uploadProgress,
     setFile,
     setUploadProgress,
